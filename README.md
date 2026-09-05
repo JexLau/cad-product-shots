@@ -47,3 +47,5 @@ Primary CTAs keep the “Send STEP for 1 free test frame” copy but are not cli
 ## Docs
 
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
+
+See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map (Case #1 stills / clip, `og:image` at `media/og/share.jpg`). Real files are TBD — do not add stock or fake 3D.

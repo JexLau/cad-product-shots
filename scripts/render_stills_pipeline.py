@@ -63,7 +63,9 @@ def parse_args():
         "only": None,
         "clay": False,
         "radius_scale": 2.35,
-        "bg": 0.72,
+        "bg": 0.50,
+        "exposure": -0.90,
+        "light_scale": 0.28,
     }
     i = 0
     while i < len(args):
@@ -107,6 +109,12 @@ def parse_args():
         elif a == "--bg" and i + 1 < len(args):
             i += 1
             out["bg"] = float(args[i])
+        elif a == "--exposure" and i + 1 < len(args):
+            i += 1
+            out["exposure"] = float(args[i])
+        elif a == "--light-scale" and i + 1 < len(args):
+            i += 1
+            out["light_scale"] = float(args[i])
         elif a == "--clay":
             out["clay"] = True
         elif a == "--force":
@@ -155,16 +163,17 @@ def set_frame(frame):
     bpy.context.view_layer.update()
 
 
-def setup_world_white(scene, level=0.72):
-    world = bpy.data.worlds.new("Case01White")
+def setup_world_studio(scene, level=0.50):
+    """Soft grey studio backdrop — not blown paper-white."""
+    world = bpy.data.worlds.new("StudioSoftGrey")
     scene.world = world
     world.use_nodes = True
     nt = world.node_tree
     nt.nodes.clear()
     bg = nt.nodes.new("ShaderNodeBackground")
     c = float(level)
-    bg.inputs["Color"].default_value = (c, c, c + 0.02, 1.0)
-    bg.inputs["Strength"].default_value = 1.0
+    bg.inputs["Color"].default_value = (c * 0.98, c, c * 1.03, 1.0)
+    bg.inputs["Strength"].default_value = 0.80
     out = nt.nodes.new("ShaderNodeOutputWorld")
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
 
@@ -180,26 +189,29 @@ def add_area(name, location, target, energy, size, color):
     look_at(light, target)
 
 
-def setup_studio(target, scale):
-    # Scale area-light power ~ distance^2 so tiny CAD (watch cases) is not blown out.
+def setup_studio(target, scale, light_scale=0.28):
+    # Size-scale area power ~ distance^2, then * light_scale for contrast control.
+    # High key:fill ratio so form reads; avoid flat white wash.
     s = max(scale, 0.05)
-    e = (s / 0.25) ** 2
-    add_area("Key", target + Vector((-0.55 * s, -0.75 * s, 0.95 * s)), target, 70.0 * e, 0.85 * s, (1.0, 0.97, 0.93))
-    add_area("Fill", target + Vector((0.85 * s, -0.35 * s, 0.55 * s)), target, 28.0 * e, 1.0 * s, (0.85, 0.90, 1.0))
-    add_area("Rim", target + Vector((0.15 * s, 0.95 * s, 0.75 * s)), target, 40.0 * e, 0.65 * s, (1.0, 0.92, 0.85))
-    add_area("Top", target + Vector((0.0, -0.1 * s, 1.4 * s)), target, 18.0 * e, 1.2 * s, (1.0, 1.0, 1.0))
+    e = max(0.06, min((s / 0.25) ** 2 * float(light_scale), 0.85))
+    add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
+    add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
+    add_area("Rim", target + Vector((0.25 * s, 1.10 * s, 0.65 * s)), target, 16.0 * e, 0.70 * s, (1.0, 0.90, 0.82))
+    add_area("Top", target + Vector((0.0, -0.15 * s, 1.65 * s)), target, 3.5 * e, 1.50 * s, (0.95, 0.97, 1.0))
 
 
-def setup_floor(z, size):
+def setup_floor(z, size, tone=(0.20, 0.22, 0.25, 1.0)):
     bpy.ops.mesh.primitive_plane_add(size=size, location=(0.0, 0.0, z - 0.001))
     floor = bpy.context.object
     floor.name = "CycloramaFloor"
-    mat = bpy.data.materials.new("PaperWhite")
+    mat = bpy.data.materials.new("SoftGreyFloor")
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     if bsdf:
-        bsdf.inputs["Base Color"].default_value = (0.95, 0.95, 0.95, 1.0)
-        bsdf.inputs["Roughness"].default_value = 0.55
+        bsdf.inputs["Base Color"].default_value = tone
+        bsdf.inputs["Roughness"].default_value = 0.72
+        if "Specular IOR Level" in bsdf.inputs:
+            bsdf.inputs["Specular IOR Level"].default_value = 0.15
     floor.data.materials.append(mat)
 
 
@@ -226,8 +238,12 @@ def setup_camera(scene, res, engine, samples):
         if eevee is not None:
             for attr, val in (
                 ("taa_render_samples", max(16, min(samples, 64))),
-                ("use_raytracing", False),
+                ("use_raytracing", True),
                 ("use_shadows", True),
+                ("use_gtao", True),
+                ("gtao_distance", 0.2),
+                ("gtao_factor", 1.0),
+                ("gtao_quality", 0.5),
             ):
                 if hasattr(eevee, attr):
                     setattr(eevee, attr, val)
@@ -244,10 +260,23 @@ def setup_camera(scene, res, engine, samples):
     if hasattr(scene, "view_settings"):
         try:
             scene.view_settings.view_transform = "AgX"
-            scene.view_settings.look = "AgX - Medium High Contrast"
+            for look in ("AgX - Medium High Contrast", "AgX - High Contrast", "None"):
+                try:
+                    scene.view_settings.look = look
+                    break
+                except Exception:
+                    continue
         except Exception:
             pass
     return cam
+
+
+def apply_exposure(scene, exposure=-0.90):
+    if hasattr(scene, "view_settings"):
+        try:
+            scene.view_settings.exposure = float(exposure)
+        except Exception:
+            pass
 
 
 def place_camera(cam, center, radius, az_deg, el_deg, lens=70.0):
@@ -358,17 +387,17 @@ def import_model(opts):
     raise FileNotFoundError("No model input. Pass --glb / --obj / --stl / --step, or place a default GLB.")
 
 
-def apply_simple_material_if_needed(force=False, tone=(0.55, 0.57, 0.60, 1.0)):
+def apply_simple_material_if_needed(force=False, tone=(0.22, 0.24, 0.27, 1.0)):
     mat = bpy.data.materials.new("NeutralPlastic")
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     if bsdf:
         bsdf.inputs["Base Color"].default_value = tone
-        bsdf.inputs["Roughness"].default_value = 0.42
+        bsdf.inputs["Roughness"].default_value = 0.48
         if "Metallic" in bsdf.inputs:
-            bsdf.inputs["Metallic"].default_value = 0.04
+            bsdf.inputs["Metallic"].default_value = 0.05
         if "Specular IOR Level" in bsdf.inputs:
-            bsdf.inputs["Specular IOR Level"].default_value = 0.35
+            bsdf.inputs["Specular IOR Level"].default_value = 0.42
     for obj in bpy.data.objects:
         if obj.type != "MESH" or obj.name == "CycloramaFloor":
             continue
@@ -378,23 +407,23 @@ def apply_simple_material_if_needed(force=False, tone=(0.55, 0.57, 0.60, 1.0)):
         obj.data.materials.append(mat)
 
 
-def dampen_existing_materials(factor=0.62):
-    """Pull bright GLB materials down so they read on a light cyclorama."""
+def dampen_existing_materials(factor=0.48):
+    """Pull bright GLB materials down so they read on soft-grey studio."""
     for mat in bpy.data.materials:
-        if mat.name in ("PaperWhite", "NeutralPlastic") or not mat.use_nodes:
+        if mat.name in ("SoftGreyFloor", "PaperWhite", "NeutralPlastic") or not mat.use_nodes:
             continue
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         if not bsdf or "Base Color" not in bsdf.inputs:
             continue
         col = list(bsdf.inputs["Base Color"].default_value)
-        bsdf.inputs["Base Color"].default_value = (
-            max(0.08, col[0] * factor),
-            max(0.08, col[1] * factor),
-            max(0.08, col[2] * factor),
-            col[3],
-        )
+        rgb = [max(0.06, min(0.72, c * factor)) for c in col[:3]]
+        bsdf.inputs["Base Color"].default_value = (rgb[0], rgb[1], rgb[2], col[3])
         if "Roughness" in bsdf.inputs:
-            bsdf.inputs["Roughness"].default_value = max(0.35, min(0.7, bsdf.inputs["Roughness"].default_value))
+            bsdf.inputs["Roughness"].default_value = max(0.38, min(0.72, bsdf.inputs["Roughness"].default_value))
+        if "Specular IOR Level" in bsdf.inputs:
+            bsdf.inputs["Specular IOR Level"].default_value = min(
+                0.45, max(0.2, bsdf.inputs["Specular IOR Level"].default_value)
+            )
 
 
 def shot_list(mode):
@@ -402,7 +431,7 @@ def shot_list(mode):
         return [
             ("07-front.jpg", 1, 0, 14, 65, 0.0, 1.0),
             ("08-three-quarter.jpg", 1, 40, 18, 65, 0.0, 1.0),
-            ("09-top.jpg", 1, 20, 82, 45, 0.0, 1.55),
+            ("09-top.jpg", 1, 28, 52, 50, 0.0, 1.22),
             ("10-orbit-a.jpg", 1, 95, 16, 65, 0.0, 1.0),
             ("11-orbit-b.jpg", 1, 150, 20, 65, 0.0, 1.0),
             ("12-detail.jpg", 1, 30, 16, 75, 0.02, 0.95),
@@ -412,7 +441,7 @@ def shot_list(mode):
     return [
         ("07-front.jpg", FRAME_CLOSED, 0, 12, 70, 0.0, 1.0),
         ("08-three-quarter.jpg", FRAME_CLOSED, 38, 16, 70, 0.0, 1.0),
-        ("09-top.jpg", FRAME_CLOSED, 15, 72, 55, 0.0, 1.15),
+        ("09-top.jpg", FRAME_CLOSED, 22, 48, 55, 0.0, 1.12),
         ("10-orbit-a.jpg", FRAME_CLOSED, 90, 14, 70, 0.0, 1.0),
         ("11-orbit-b.jpg", FRAME_CLOSED, 155, 18, 70, 0.0, 1.0),
         ("12-detail.jpg", FRAME_CLOSED, 25, 8, 95, -0.02, 0.62),
@@ -448,7 +477,7 @@ def main():
     if opts["clay"] or kind in ("stl", "step", "obj"):
         apply_simple_material_if_needed(force=opts["clay"])
     elif kind == "glb":
-        dampen_existing_materials(0.58)
+        dampen_existing_materials(0.46)
 
     mins, maxs = mesh_bbox()
     center = (mins + maxs) / 2.0
@@ -457,11 +486,17 @@ def main():
     radius = extent * float(opts["radius_scale"])
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
-    setup_world_white(scene, opts["bg"])
-    setup_floor(mins.z, max(size.x, size.y) * 6.0)
-    setup_studio(center, extent)
+    setup_world_studio(scene, opts["bg"])
+    g = max(0.14, float(opts["bg"]) * 0.82)
+    setup_floor(mins.z, max(size.x, size.y) * 6.0, tone=(g, g * 1.01, g * 1.04, 1.0))
+    setup_studio(center, extent, light_scale=opts["light_scale"])
     cam = setup_camera(scene, opts["res"], opts["engine"], opts["samples"])
-    print(f"ENGINE {scene.render.engine} samples={opts['samples']} res={opts['res']}", flush=True)
+    apply_exposure(scene, opts["exposure"])
+    print(
+        f"ENGINE {scene.render.engine} samples={opts['samples']} res={opts['res']} "
+        f"bg={opts['bg']} exposure={opts['exposure']} light_scale={opts['light_scale']}",
+        flush=True,
+    )
 
     shots = shot_list(shots_mode)
     if opts["only"]:

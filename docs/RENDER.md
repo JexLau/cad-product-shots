@@ -22,7 +22,9 @@ Native `--step` fails clearly if no CAD addon is present.
 ./scripts/run_demo_renders.sh watchy   # open e-ink watch case
 ```
 
-Lighting power scales with model size (avoids blown-out tiny CAD).
+Lighting: soft-grey studio (not paper-white), size-scaled area lights,
+`--exposure` / `--light-scale` / `--bg` knobs. Defaults bias toward readable
+product contrast (avoid blown white).
 
 ## Hard line
 

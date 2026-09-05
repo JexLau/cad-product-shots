@@ -9,7 +9,7 @@ Service landing for geometry-faithful CAD marketing assets. One scroll. No produ
 3. **3 steps** — send assembly → geometry-faithful frames → continue only if the free still is useful
 4. **Standard pack** — In / Out / SLA / how we price (no public rate card)
 5. **Geometry proof** — alignment, consistency across angles, human acceptance gate
-6. **Case #1** — own wearable hardware; **one** reserved slot + an inventory note until assets ship (not a row of empty cards)
+6. **Case #1** — own wearable hardware; featured ghost still + white-background + studio stills (and optional orbit clip). Missing pack frames stay off the page — not a row of empty cards.
 7. **FAQ** — formats, NDA, timing, in-house tools, how we price (not a rate card), “is this AI video?”
 8. **Footer CTA** — same primary action label; contact remains TBD until a real address exists
 
@@ -26,8 +26,8 @@ Near-black studio field, paper-gray type and frames, geometric sans (Outfit + Wo
 | **Free 1 still** | First still is a free test frame. If it is not useful, the buyer does not pay for it. Full pack is quoted after that. |
 | **No public price** | No USD price card and no dollar figures on the Pack card. On-page line: priced like outsourced 3D / film work; quote after we talk. FAQ “How do you price?” is collapsed and marked **not our rate card**. |
 | **Not SaaS** | No accounts, no upload widget, no embed. Primary CTAs keep the offer copy but are not `mailto:` until a real inbox exists. |
-| **Samples** | One reserved slot in Hero and Case, labeled **“Reserved slot — still shipping”**. Remaining Case #1 stills / clip are listed in copy, not drawn as empty frames. Drop-in paths live in [MEDIA.md](./MEDIA.md). No stock fake-3D renders. |
-| **Share card** | `og:image` / `twitter:image` point at `media/og/share.jpg` (1200×630). File is TBD until a real still exists. |
+| **Samples** | Hero and Case featured use `01-ghost-perspective.jpg`. Case extras use `02-white-bg-a.jpg` and `05-studio-a.jpg`. Optional muted orbit clip uses `01-orbit.mp4` with the ghost still as poster. Remaining numbered stills stay off the page until they exist. Drop-in paths live in [MEDIA.md](./MEDIA.md). No stock fake-3D renders. |
+| **Share card** | `og:image` / `twitter:image` point at the committed 1200×630 `media/og/share.jpg`. `twitter:card` is `summary_large_image`. |
 
 ## Out of scope (intentionally absent)
 

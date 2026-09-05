@@ -21,12 +21,12 @@ media/
 
 | File | Use on page | Status |
 | --- | --- | --- |
-| `01-ghost-perspective.jpg` | Hero slot **and** Case featured slot | **On the page.** Same asset in both places. |
-| `02-white-bg-a.jpg` | Case extra still | **On the page.** |
-| `03-white-bg-b.jpg` | Optional extra still | Not on the page yet. |
-| `04-white-bg-c.jpg` | Optional extra still | Not on the page yet. Pack calls for 3 white-background stills. |
-| `05-studio-a.jpg` | Case studio / detail slot | **On the page.** |
-| `06-studio-b.jpg` | Optional extra still | Not on the page yet. Pack calls for 2 studio / detail stills. |
+| `01-ghost-perspective.jpg` | Hero slot **and** Case featured slot (full-width) | **On the page.** Same asset in both places. |
+| `02-white-bg-a.jpg` | Case 2-up grid | **On the page.** |
+| `03-white-bg-b.png` | Case 2-up grid — open-lid hero | **On the page.** Landed as PNG. |
+| `04-white-bg-c.png` | Case 2-up grid | **On the page.** Landed as PNG. Pack’s 3 white-background stills are now on the page. |
+| `05-studio-a.jpg` | Case 2-up grid — studio / detail | **On the page.** |
+| `06-studio-b.png` | Case 2-up grid — yellow-post detail | **On the page.** Landed as PNG. Pack’s 2 studio / detail stills are now on the page. |
 
 Preferred: JPEG or WebP, long edge ≥1600px, sRGB. Name, do not invent, the missing numbers.
 

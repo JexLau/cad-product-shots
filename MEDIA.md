@@ -66,3 +66,13 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 - Stock / marketplace “3D product” images
 - AI-generated purple / neon stand-ins
 - Invented Case #1 photography
+
+
+## Demo · open CAD packs
+
+| Pack | Path | License | Hard line |
+| --- | --- | --- | --- |
+| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | No endorsement / fake brand / logo |
+| Open e-ink watch case | `media/demo-watchy/` | MIT | Not Apple Watch; not “Watchy” shelf name |
+
+Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.

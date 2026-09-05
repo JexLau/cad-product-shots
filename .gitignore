@@ -1,0 +1,6 @@
+media/**/source/*.obj
+media/**/source/*.step
+media/**/source/*.STEP
+scripts/_*.txt
+scripts/_*.log
+assets/

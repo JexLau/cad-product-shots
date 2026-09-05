@@ -154,8 +154,8 @@ def apply_preset(out, explicit):
     if name in ("dark", "studio-dark", "dark-premium"):
         defaults = {
             "bg": 0.03,
-            "exposure": -0.30,
-            "light_scale": 0.46,
+            "exposure": -0.65,
+            "light_scale": 0.34,
             "radius_scale": 2.95,
             "dampen": 0.90,
             "clay": False,
@@ -247,10 +247,10 @@ def setup_studio(target, scale, light_scale=0.28, style="softgrey"):
     s = max(scale, 0.05)
     e = max(0.18, min((s / 0.25) ** 2, 1.10)) * float(light_scale)
     if style == "dark":
-        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 28.0 * e, 0.70 * s, (1.0, 0.97, 0.92))
+        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 18.0 * e, 0.70 * s, (1.0, 0.97, 0.92))
         add_area("Fill", target + Vector((1.10 * s, -0.30 * s, 0.35 * s)), target, 2.4 * e, 1.40 * s, (0.72, 0.82, 1.0))
-        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 52.0 * e, 0.50 * s, (1.0, 0.93, 0.86))
-        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 22.0 * e, 0.42 * s, (0.95, 0.98, 1.0))
+        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 28.0 * e, 0.50 * s, (1.0, 0.93, 0.86))
+        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 12.0 * e, 0.42 * s, (0.95, 0.98, 1.0))
         add_area("Top", target + Vector((0.0, -0.10 * s, 1.70 * s)), target, 3.0 * e, 1.20 * s, (0.95, 0.97, 1.0))
     else:
         add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))

@@ -62,11 +62,17 @@ def parse_args():
         "repo_stills": None,
         "only": None,
         "clay": False,
+        "no_clay": False,
         "radius_scale": 2.35,
         "bg": 0.22,
         "exposure": -0.70,
         "light_scale": 0.40,
+        "dampen": 0.46,
+        "preset": "softgrey",
+        "lighting": "softgrey",
+        "world_strength": 0.65,
     }
+    explicit = set()
     i = 0
     while i < len(args):
         a = args[i]
@@ -106,23 +112,69 @@ def parse_args():
         elif a == "--radius-scale" and i + 1 < len(args):
             i += 1
             out["radius_scale"] = float(args[i])
+            explicit.add("radius_scale")
         elif a == "--bg" and i + 1 < len(args):
             i += 1
             out["bg"] = float(args[i])
+            explicit.add("bg")
         elif a == "--exposure" and i + 1 < len(args):
             i += 1
             out["exposure"] = float(args[i])
+            explicit.add("exposure")
         elif a == "--light-scale" and i + 1 < len(args):
             i += 1
             out["light_scale"] = float(args[i])
+            explicit.add("light_scale")
+        elif a == "--dampen" and i + 1 < len(args):
+            i += 1
+            out["dampen"] = float(args[i])
+            explicit.add("dampen")
+        elif a == "--preset" and i + 1 < len(args):
+            i += 1
+            out["preset"] = args[i].strip().lower()
         elif a == "--clay":
             out["clay"] = True
+            explicit.add("clay")
+        elif a == "--no-clay":
+            out["no_clay"] = True
+            out["clay"] = False
+            explicit.add("clay")
         elif a == "--force":
             out["force"] = True
         elif a == "--no-copy-repo":
             out["copy_repo"] = False
         i += 1
+    apply_preset(out, explicit)
     return out
+
+
+def apply_preset(out, explicit):
+    """Apply studio presets. Explicit CLI knobs always win over preset defaults."""
+    name = (out.get("preset") or "softgrey").lower().replace("_", "-")
+    if name in ("dark", "studio-dark", "dark-premium"):
+        defaults = {
+            "bg": 0.03,
+            "exposure": -0.30,
+            "light_scale": 0.46,
+            "radius_scale": 2.95,
+            "dampen": 0.90,
+            "clay": False,
+            "lighting": "dark",
+            "world_strength": 0.22,
+        }
+        for key, val in defaults.items():
+            if key == "clay":
+                if "clay" not in explicit:
+                    out["clay"] = False
+                    out["no_clay"] = True
+                continue
+            if key not in explicit:
+                out[key] = val
+        out["preset"] = "studio-dark"
+    else:
+        out["preset"] = "softgrey"
+        out.setdefault("lighting", "softgrey")
+        out.setdefault("world_strength", 0.65)
 
 
 def look_at(obj, target):
@@ -163,9 +215,9 @@ def set_frame(frame):
     bpy.context.view_layer.update()
 
 
-def setup_world_studio(scene, level=0.22):
-    """Soft grey studio backdrop — not blown paper-white."""
-    world = bpy.data.worlds.new("StudioSoftGrey")
+def setup_world_studio(scene, level=0.22, strength=0.65, name="StudioSoftGrey"):
+    """Studio backdrop — soft-grey (default) or near-black for studio-dark."""
+    world = bpy.data.worlds.new(name)
     scene.world = world
     world.use_nodes = True
     nt = world.node_tree
@@ -173,7 +225,7 @@ def setup_world_studio(scene, level=0.22):
     bg = nt.nodes.new("ShaderNodeBackground")
     c = float(level)
     bg.inputs["Color"].default_value = (c * 0.98, c, c * 1.03, 1.0)
-    bg.inputs["Strength"].default_value = 0.65
+    bg.inputs["Strength"].default_value = float(strength)
     out = nt.nodes.new("ShaderNodeOutputWorld")
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
 
@@ -189,30 +241,56 @@ def add_area(name, location, target, energy, size, color):
     look_at(light, target)
 
 
-def setup_studio(target, scale, light_scale=0.28):
+def setup_studio(target, scale, light_scale=0.28, style="softgrey"):
     # Size-scale area power ~ distance^2, then * light_scale for contrast control.
-    # High key:fill ratio so form reads; avoid flat white wash.
+    # softgrey: readable CAD demo. dark: high key:rim, low fill (DJI-track).
     s = max(scale, 0.05)
     e = max(0.18, min((s / 0.25) ** 2, 1.10)) * float(light_scale)
-    add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
-    add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
-    add_area("Rim", target + Vector((0.25 * s, 1.10 * s, 0.65 * s)), target, 16.0 * e, 0.70 * s, (1.0, 0.90, 0.82))
-    add_area("Top", target + Vector((0.0, -0.15 * s, 1.65 * s)), target, 3.5 * e, 1.50 * s, (0.95, 0.97, 1.0))
+    if style == "dark":
+        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 28.0 * e, 0.70 * s, (1.0, 0.97, 0.92))
+        add_area("Fill", target + Vector((1.10 * s, -0.30 * s, 0.35 * s)), target, 2.4 * e, 1.40 * s, (0.72, 0.82, 1.0))
+        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 52.0 * e, 0.50 * s, (1.0, 0.93, 0.86))
+        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 22.0 * e, 0.42 * s, (0.95, 0.98, 1.0))
+        add_area("Top", target + Vector((0.0, -0.10 * s, 1.70 * s)), target, 3.0 * e, 1.20 * s, (0.95, 0.97, 1.0))
+    else:
+        add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
+        add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
+        add_area("Rim", target + Vector((0.25 * s, 1.10 * s, 0.65 * s)), target, 16.0 * e, 0.70 * s, (1.0, 0.90, 0.82))
+        add_area("Top", target + Vector((0.0, -0.15 * s, 1.65 * s)), target, 3.5 * e, 1.50 * s, (0.95, 0.97, 1.0))
 
 
-def setup_floor(z, size, tone=(0.20, 0.22, 0.25, 1.0)):
+def setup_floor(
+    z,
+    size,
+    tone=(0.20, 0.22, 0.25, 1.0),
+    roughness=0.72,
+    specular=0.15,
+    mat_name="SoftGreyFloor",
+    shadow_catcher=False,
+):
     bpy.ops.mesh.primitive_plane_add(size=size, location=(0.0, 0.0, z - 0.001))
     floor = bpy.context.object
     floor.name = "CycloramaFloor"
-    mat = bpy.data.materials.new("SoftGreyFloor")
+    mat = bpy.data.materials.new(mat_name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     if bsdf:
         bsdf.inputs["Base Color"].default_value = tone
-        bsdf.inputs["Roughness"].default_value = 0.72
+        bsdf.inputs["Roughness"].default_value = float(roughness)
         if "Specular IOR Level" in bsdf.inputs:
-            bsdf.inputs["Specular IOR Level"].default_value = 0.15
+            bsdf.inputs["Specular IOR Level"].default_value = float(specular)
     floor.data.materials.append(mat)
+    if shadow_catcher:
+        # Cycles: contact shadow on dark world without a blown lit slab.
+        try:
+            floor.is_shadow_catcher = True
+        except Exception:
+            pass
+        try:
+            floor.visible_glossy = False
+        except Exception:
+            pass
+
 
 
 def setup_camera(scene, res, engine, samples):
@@ -408,9 +486,9 @@ def apply_simple_material_if_needed(force=False, tone=(0.22, 0.24, 0.27, 1.0)):
 
 
 def dampen_existing_materials(factor=0.48):
-    """Pull bright GLB materials down so they read on soft-grey studio."""
+    """Pull bright GLB materials down; use a higher factor (~0.90) for studio-dark."""
     for mat in bpy.data.materials:
-        if mat.name in ("SoftGreyFloor", "PaperWhite", "NeutralPlastic") or not mat.use_nodes:
+        if mat.name in ("SoftGreyFloor", "DarkStudioFloor", "PaperWhite", "NeutralPlastic") or not mat.use_nodes:
             continue
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         if not bsdf or "Base Color" not in bsdf.inputs:
@@ -425,6 +503,25 @@ def dampen_existing_materials(factor=0.48):
                 0.45, max(0.2, bsdf.inputs["Specular IOR Level"].default_value)
             )
 
+
+
+def satinize_overmetallic(max_metallic=0.12):
+    """Pull mis-authored full-metal GLB plastics toward satin; preserve true metals lightly."""
+    for mat in bpy.data.materials:
+        if mat.name in ("SoftGreyFloor", "DarkStudioFloor", "PaperWhite", "NeutralPlastic") or not mat.use_nodes:
+            continue
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if not bsdf or "Metallic" not in bsdf.inputs:
+            continue
+        metal = float(bsdf.inputs["Metallic"].default_value)
+        rough = float(bsdf.inputs["Roughness"].default_value) if "Roughness" in bsdf.inputs else 0.5
+        # Rough + fully metallic is usually CAD placeholder plastic, not chrome.
+        if metal > 0.45 and rough >= 0.35:
+            bsdf.inputs["Metallic"].default_value = float(max_metallic)
+            if "Roughness" in bsdf.inputs:
+                bsdf.inputs["Roughness"].default_value = max(0.42, min(0.62, rough))
+            if "Specular IOR Level" in bsdf.inputs:
+                bsdf.inputs["Specular IOR Level"].default_value = 0.38
 
 def shot_list(mode):
     if mode == "simple":
@@ -474,10 +571,19 @@ def main():
     else:
         set_frame(1)
 
-    if opts["clay"] or kind in ("stl", "step", "obj"):
-        apply_simple_material_if_needed(force=opts["clay"])
+    use_clay = bool(opts["clay"]) and not bool(opts.get("no_clay"))
+    if use_clay:
+        apply_simple_material_if_needed(force=True)
+    elif kind in ("stl", "step", "obj"):
+        # Assign NeutralPlastic only when meshes have no materials (never force-clay on dark).
+        apply_simple_material_if_needed(force=False)
     elif kind == "glb":
-        dampen_existing_materials(0.46)
+        damp = float(opts.get("dampen", 0.46))
+        if damp > 0:
+            dampen_existing_materials(damp)
+        if (opts.get("lighting") or "softgrey") == "dark":
+            # GLB often marks plastics Metallic=1; keep satin character, not chrome/clay.
+            satinize_overmetallic(max_metallic=0.12)
 
     mins, maxs = mesh_bbox()
     center = (mins + maxs) / 2.0
@@ -486,15 +592,32 @@ def main():
     radius = extent * float(opts["radius_scale"])
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
-    setup_world_studio(scene, opts["bg"])
-    g = max(0.16, float(opts["bg"]) * 0.62)
-    setup_floor(mins.z, max(size.x, size.y) * 6.0, tone=(g, g * 1.01, g * 1.04, 1.0))
-    setup_studio(center, extent, light_scale=opts["light_scale"])
+    lighting = opts.get("lighting") or "softgrey"
+    world_name = "StudioDark" if lighting == "dark" else "StudioSoftGrey"
+    setup_world_studio(scene, opts["bg"], strength=opts.get("world_strength", 0.65), name=world_name)
+    if lighting == "dark":
+        g = max(0.008, float(opts["bg"]) * 0.40)
+        floor_tone = (g, g * 1.02, g * 1.05, 1.0)
+        setup_floor(
+            mins.z,
+            max(size.x, size.y) * 6.0,
+            tone=floor_tone,
+            roughness=0.95,
+            specular=0.02,
+            mat_name="DarkStudioFloor",
+            shadow_catcher=True,
+        )
+    else:
+        g = max(0.16, float(opts["bg"]) * 0.62)
+        floor_tone = (g, g * 1.01, g * 1.04, 1.0)
+        setup_floor(mins.z, max(size.x, size.y) * 6.0, tone=floor_tone)
+    setup_studio(center, extent, light_scale=opts["light_scale"], style=lighting)
     cam = setup_camera(scene, opts["res"], opts["engine"], opts["samples"])
     apply_exposure(scene, opts["exposure"])
     print(
         f"ENGINE {scene.render.engine} samples={opts['samples']} res={opts['res']} "
-        f"bg={opts['bg']} exposure={opts['exposure']} light_scale={opts['light_scale']}",
+        f"preset={opts.get('preset')} lighting={lighting} bg={opts['bg']} "
+        f"exposure={opts['exposure']} light_scale={opts['light_scale']} dampen={opts.get('dampen')}",
         flush=True,
     )
 

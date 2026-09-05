@@ -10,8 +10,8 @@ Service landing for geometry-faithful CAD marketing assets. One scroll. No produ
 4. **Standard pack** — In / Out / SLA / how we price (no public rate card)
 5. **Geometry proof** — alignment, consistency across angles, human acceptance gate
 6. **Case #1** — own wearable hardware; labeled placeholder frames until assets ship
-7. **FAQ** — formats, NDA, timing, in-house tools, “is this AI video?”
-8. **Footer CTA** — same primary action + contact placeholders
+7. **FAQ** — formats, NDA, timing, in-house tools, how we price (not a rate card), “is this AI video?”
+8. **Footer CTA** — same primary action label; contact remains TBD until a real address exists
 
 ## Visual
 
@@ -24,8 +24,8 @@ Near-black studio field, paper-gray type and frames, geometric sans (Outfit + Wo
 | **N = 5** | Standard pack includes **5 hero stills** (3 white-background + 2 studio / detail). |
 | **Ghost / perspective** | Ghost / perspective assembly is **in the pack**. True explode is an **add-on**, not a default deliverable. |
 | **Free 1 still** | First still is a free test frame. If it is not useful, the buyer does not pay for it. Full pack is quoted after that. |
-| **No public price** | No USD price card. On-page line: priced like outsourced 3D / film work; quote after we talk. The Rapid Renders 2026 band is a **seller-claim footnote** (market context), not our rate card. |
-| **Not SaaS** | No accounts, no upload widget, no embed. CTA is mailto (address marked TODO). |
+| **No public price** | No USD price card and no dollar figures on the Pack card. On-page line: priced like outsourced 3D / film work; quote after we talk. FAQ “How do you price?” is collapsed and marked **not our rate card**. |
+| **Not SaaS** | No accounts, no upload widget, no embed. Primary CTAs keep the offer copy but are not `mailto:` until a real inbox exists. |
 | **Samples** | Placeholders labeled **“Case #1 still — asset TBD”**. No stock fake-3D renders. |
 
 ## Out of scope (intentionally absent)

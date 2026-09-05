@@ -48,9 +48,15 @@
           <a href="#case">Sample</a>
           <a href="#faq">FAQ</a>
         </nav>
-        <a class="btn btn-primary btn-header" href="mailto:todo@example.com?subject=Free%20test%20frame%20STEP"
-          >Send STEP for 1 free test frame</a
+        <button
+          type="button"
+          class="btn btn-primary btn-header"
+          aria-label="Send STEP for 1 free test frame"
+          disabled
         >
+          <span class="cta-short" aria-hidden="true">Free test frame</span>
+          <span class="cta-long" aria-hidden="true">Send STEP for 1 free test frame</span>
+        </button>
       </div>
     </header>
 
@@ -59,21 +65,17 @@
         <div class="wrap hero-grid">
           <div class="hero-copy">
             <p class="kicker">STEP / IGES → launch visuals</p>
+            <p class="page-banner" role="status">Sample frames shipping — page skeleton</p>
             <h1>STEP / IGES in → launch-ready product shots out.</h1>
-            <p class="lead">Geometry from your CAD — not a made-up model.</p>
             <p class="sub">
-              For hardware teams with a real assembly who need site, Kickstarter, or ad visuals that
-              stay true to the part.
+              Geometry from your CAD — not a made-up model. For hardware teams with a real assembly
+              who need site, Kickstarter, or ad visuals that stay true to the part.
             </p>
             <div class="cta-row">
-              <a class="btn btn-primary" href="mailto:todo@example.com?subject=Free%20test%20frame%20STEP"
-                >Send STEP for 1 free test frame</a
-              >
-              <p class="cta-note">mailto · email TBD</p>
+              <span class="btn btn-primary" aria-disabled="true">Send STEP for 1 free test frame</span>
+              <p class="cta-note">Contact TBD</p>
             </div>
             <p class="secondary-links">
-              <a href="#case">See sample</a>
-              <span aria-hidden="true"> · </span>
               <a href="#pack">What’s in the pack</a>
             </p>
           </div>
@@ -185,11 +187,6 @@
               <dd>Priced like outsourced 3D / film work — not like AI short-form. Quote after we talk.</dd>
             </div>
           </dl>
-          <p class="footnote">
-            Optional market context (seller claim, not our rate card): public CAD→marketing studios
-            often list ~$99–$300 simple white; ~$250–$700 CAD-direct; explode ~$300–$800/view —
-            Rapid Renders 2026.
-          </p>
         </div>
       </section>
 
@@ -226,6 +223,7 @@
               PBR hero stills. Incomplete pack still shipping — enough to show the link: our CAD →
               our product shots.
             </p>
+            <p class="page-banner" role="status">Sample frames shipping — page skeleton</p>
           </header>
           <div class="case-grid">
             <figure class="frame frame-studio">
@@ -312,6 +310,13 @@
               </p>
             </details>
             <details>
+              <summary>How do you price?</summary>
+              <p>
+                Quote after we talk. We price like outsourced 3D / film work, not like AI short-form.
+                This page is <strong>not our rate card</strong> — no published dollar figures.
+              </p>
+            </details>
+            <details>
               <summary>Is this AI video?</summary>
               <p>
                 No. Input is CAD. Output is geometry-faithful product shots (and optional short
@@ -326,16 +331,8 @@
     <footer class="footer" id="contact">
       <div class="wrap footer-inner">
         <h2>Ready for one free test frame?</h2>
-        <a class="btn btn-primary btn-lg" href="mailto:todo@example.com?subject=Free%20test%20frame%20STEP"
-          >Send STEP for 1 free test frame</a
-        >
-        <p class="cta-note">mailto: todo@example.com · email TBD</p>
-        <p class="contacts">
-          <span class="todo">TODO</span>
-          X: @[business-handle]
-          <span aria-hidden="true"> · </span>
-          Email: [biz@domain]
-        </p>
+        <span class="btn btn-primary btn-lg" aria-disabled="true">Send STEP for 1 free test frame</span>
+        <p class="cta-note">Contact TBD</p>
       </div>
     </footer>
   </body>

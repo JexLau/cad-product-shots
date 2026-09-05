@@ -3,7 +3,7 @@
   --bg-elev: #181816;
   --paper: #eceae4;
   --ink: #eceae4;
-  --muted: #a8a49c;
+  --muted: #bdb8ae;
   --line: rgba(236, 234, 228, 0.14);
   --line-strong: rgba(236, 234, 228, 0.28);
   --steel: #c4bba8;
@@ -95,9 +95,7 @@ a:hover {
 .proof-idx,
 .step-num,
 .frame-tag,
-.todo,
 .wordmark,
-.contacts,
 .cta-note,
 figcaption,
 dt {
@@ -156,6 +154,7 @@ dt {
   padding: 0.7rem 1.05rem;
   border: 1px solid transparent;
   border-radius: 2px;
+  appearance: none;
   font-family: var(--font-body);
   font-size: 0.95rem;
   font-weight: 600;
@@ -177,10 +176,27 @@ dt {
 
 .btn-header {
   display: inline-flex;
-  max-width: min(18rem, 62vw);
+  max-width: none;
   padding: 0.45rem 0.7rem;
   font-size: 0.8rem;
   text-align: center;
+}
+
+.btn-primary:disabled,
+.btn-primary[aria-disabled="true"] {
+  opacity: 1;
+  cursor: default;
+  pointer-events: none;
+  background: var(--cta-bg);
+  color: var(--cta-ink);
+}
+
+.cta-short {
+  display: inline;
+}
+
+.cta-long {
+  display: none;
 }
 
 .btn-lg {
@@ -216,17 +232,31 @@ dt {
 
 .hero h1 {
   font-size: clamp(2rem, 6vw, 3.4rem);
-  max-width: 20ch;
+  max-width: 30ch;
 }
 
-.lead {
-  margin: 1.25rem 0 0;
-  font-size: 1.25rem;
-  font-weight: 500;
+.page-banner {
+  display: inline-block;
+  margin: 0.85rem 0 0;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 82%, var(--bg));
+}
+
+.hero-copy .page-banner {
+  margin-top: 0.85rem;
+}
+
+.section-head .page-banner {
+  margin-top: 0.9rem;
 }
 
 .sub {
-  margin: 0.65rem 0 0;
+  margin: 1.1rem 0 0;
   color: var(--muted);
   max-width: 42rem;
 }
@@ -402,8 +432,8 @@ dd {
 
 .footnote {
   margin: 1.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--muted) 70%, var(--bg));
+  font-size: 0.75rem;
   max-width: 52rem;
 }
 
@@ -472,20 +502,6 @@ dd {
   max-width: 16ch;
 }
 
-.contacts {
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--muted);
-}
-
-.todo {
-  display: inline-block;
-  margin-right: 0.4rem;
-  padding: 0.1rem 0.35rem;
-  border: 1px solid var(--line-strong);
-  color: var(--steel);
-}
-
 .footer h1 {
   font-family: var(--font-display);
   font-weight: 500;
@@ -497,6 +513,14 @@ dd {
 }
 
 @media (min-width: 720px) {
+  .cta-short {
+    display: none;
+  }
+
+  .cta-long {
+    display: inline;
+  }
+
   .split,
   .hero-frames,
   .case-grid {

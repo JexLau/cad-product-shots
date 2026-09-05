@@ -40,9 +40,9 @@ There is no build step and no environment variables.
 3. Build Command: empty. Output Directory: `.` (root).
 4. `vercel.json` enables clean URLs. No secrets required.
 
-## Contact (TODO)
+## Contact
 
-Primary CTA is `mailto:todo@example.com?subject=Free%20test%20frame%20STEP`. Replace the address and the footer `X` / email placeholders before a public launch.
+Primary CTAs keep the “Send STEP for 1 free test frame” copy but are not clickable `mailto:` links until a real inbox exists. Visible page copy says **Contact TBD**.
 
 ## Docs
 

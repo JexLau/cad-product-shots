@@ -32,6 +32,31 @@ Soft-grey controlled studio — **not** paper-white cyclorama:
 - AgX High Contrast + `--exposure` pull-down to avoid blown highlights
 - Clay / dampened GLB materials for readable form
 
+
+## Studio-dark preset (DJI-track sample)
+
+Near-black backdrop + high rim/kicker contrast. Does **not** replace the soft-grey
+live pack — keep `--preset softgrey` (default) for readable CAD DoD stills.
+
+Single-shot Watchy three-quarter preview:
+
+```bash
+BLENDER=/workspace/blender-install/blender-5.2.0-linux-x64/blender
+OUT=/tmp/watchy-dark-preview
+mkdir -p "$OUT"
+"$BLENDER" -b -P scripts/render_stills_pipeline.py -- \
+  --glb media/demo-watchy/source/Armadillonium_Model.glb \
+  --shots simple --only 08-three-quarter.jpg \
+  --preset dark --engine CYCLES --samples 64 --res 1080 \
+  --out "$OUT" --no-copy-repo --force
+cp "$OUT/08-three-quarter.jpg" media/demo-watchy/stills/_preview-dark-08.jpg
+```
+
+`--preset dark` (alias: `studio-dark`) sets roughly `--bg 0.03`, raised rim/kicker vs fill,
+weaker GLB dampen + satinize (not clay), exposure/light-scale for dark bg, slightly higher
+`--radius-scale`, and a Cycles shadow-catcher floor so the slab does not blow out.
+Explicit CLI flags still override preset knobs. Soft-grey defaults remain unchanged.
+
 ## Hard line
 
 No brand-official images / fake logos. Demo · open CAD labels only.

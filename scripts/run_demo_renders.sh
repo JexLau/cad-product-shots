@@ -15,7 +15,7 @@ case "$TARGET" in
       --out /workspace/cad-product-shots/media/demo-watchy/stills \
       --repo-stills /workspace/cad-product-shots/media/demo-watchy/stills \
       --shots simple --engine "$ENGINE" --samples "$SAMPLES" --res "$RES" \
-      --radius-scale 2.6 --bg 0.22 --exposure -0.70 --light-scale 0.40 --force
+      --radius-scale 2.35 --bg 0.42 --exposure -1.05 --light-scale 0.35 --dampen 0.30 --force
     ;;
   ploopy)
     exec "$BLENDER" --background --factory-startup --python "$SCRIPT" -- \
@@ -23,7 +23,7 @@ case "$TARGET" in
       --out /workspace/cad-product-shots/media/demo-ploopy/stills \
       --repo-stills /workspace/cad-product-shots/media/demo-ploopy/stills \
       --shots simple --engine "$ENGINE" --samples "$SAMPLES" --res "$RES" \
-      --radius-scale 2.4 --bg 0.20 --exposure -0.75 --light-scale 0.38 --clay --force
+      --radius-scale 2.4 --bg 0.48 --exposure -1.05 --light-scale 0.20 --clay --force
     ;;
   case01)
     exec "$BLENDER" --background --factory-startup --python "$SCRIPT" -- \
@@ -31,7 +31,7 @@ case "$TARGET" in
       --out /workspace/catellect-ops/media/case-01/stills \
       --repo-stills /workspace/cad-product-shots/media/case-01/stills \
       --shots case01 --engine CYCLES --samples 16 --res 1080 \
-      --bg 0.26 --exposure -0.55 --light-scale 0.42 --force
+      --bg 0.48 --exposure -0.60 --light-scale 0.35 --force
     ;;
   *) echo "unknown $TARGET"; exit 2;;
 esac

@@ -599,21 +599,13 @@ dd {
   }
 
   .case-stage {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    align-items: start;
   }
 
   .frame-featured {
     grid-column: 1;
     grid-row: 1 / 3;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .frame-featured .frame-stage {
-    flex: 1;
-    aspect-ratio: auto;
-    min-height: 0;
   }
 
   .frame-orbit {

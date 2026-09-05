@@ -49,3 +49,14 @@ Primary CTAs (hero, sticky header, footer) open `mailto:jexlau.dev@gmail.com?sub
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
 
 See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Do not add stock or fake 3D.
+
+## Case #1 multi-angle stills
+
+One-click headless Blender EEVEE pack (does not overwrite `01`–`06`):
+
+```bash
+bash scripts/run_case01_stills.sh /workspace/catellect-ops/media/case-01/stills
+```
+
+See [docs/RENDER.md](./docs/RENDER.md). Outputs land in `media/case-01/stills/` as `07-front.jpg` … `14-open-front.jpg`.
+

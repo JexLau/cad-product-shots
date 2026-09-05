@@ -1,6 +1,4 @@
-media/**/source/*.obj
-media/**/source/*.step
-media/**/source/*.STEP
+**/PloopyHeadphones-RevA.STL
+**/PloopyHeadphones-RevA.stl
 scripts/_*.txt
 scripts/_*.log
-assets/

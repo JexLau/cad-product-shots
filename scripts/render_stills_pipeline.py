@@ -63,9 +63,9 @@ def parse_args():
         "only": None,
         "clay": False,
         "radius_scale": 2.35,
-        "bg": 0.50,
-        "exposure": -0.90,
-        "light_scale": 0.28,
+        "bg": 0.22,
+        "exposure": -0.70,
+        "light_scale": 0.40,
     }
     i = 0
     while i < len(args):
@@ -163,7 +163,7 @@ def set_frame(frame):
     bpy.context.view_layer.update()
 
 
-def setup_world_studio(scene, level=0.50):
+def setup_world_studio(scene, level=0.22):
     """Soft grey studio backdrop — not blown paper-white."""
     world = bpy.data.worlds.new("StudioSoftGrey")
     scene.world = world

@@ -258,8 +258,10 @@ dt {
   color: color-mix(in srgb, var(--muted) 82%, var(--bg));
 }
 
-.section-head .page-banner {
-  margin-top: 0.9rem;
+@media (min-width: 420px) {
+  .page-banner {
+    white-space: nowrap;
+  }
 }
 
 .sub {
@@ -293,6 +295,7 @@ dt {
 .hero-frames {
   display: grid;
   gap: 1rem;
+  align-content: end;
 }
 
 .frame {
@@ -367,9 +370,24 @@ figcaption {
 .split,
 .steps,
 .proof,
-.case-grid {
+.case-stage {
   display: grid;
   gap: 1rem;
+}
+
+.case-note {
+  background: var(--bg-elev);
+  border: 1px dashed var(--line);
+  padding: 1.25rem 1.35rem;
+}
+
+.case-note > p + p,
+.case-note > p + .plain-list {
+  margin-top: 0.85rem;
+}
+
+.case-note .plain-list {
+  color: var(--muted);
 }
 
 .panel,
@@ -528,9 +546,7 @@ dd {
     display: inline;
   }
 
-  .split,
-  .hero-frames,
-  .case-grid {
+  .split {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -552,11 +568,28 @@ dd {
   }
 
   .hero-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: end;
+    gap: 2rem 1.75rem;
   }
 
   .hero-copy {
-    grid-column: 1 / -1;
+    grid-column: auto;
+    min-width: 0;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.85rem, 3.2vw + 0.65rem, 3.4rem);
+  }
+
+  .hero-frames {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .case-stage {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: stretch;
   }
 }
 
@@ -567,22 +600,5 @@ dd {
 
   .hero {
     padding: 4.25rem 0 4rem;
-  }
-
-  .hero-grid {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-    align-items: end;
-  }
-
-  .hero-copy {
-    grid-column: auto;
-  }
-
-  .hero-frames {
-    grid-template-columns: 1fr;
-  }
-
-  .case-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }

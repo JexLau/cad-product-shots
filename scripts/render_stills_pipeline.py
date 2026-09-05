@@ -61,6 +61,9 @@ def parse_args():
         "shots": "case01",
         "repo_stills": None,
         "only": None,
+        "clay": False,
+        "radius_scale": 2.35,
+        "bg": 0.72,
     }
     i = 0
     while i < len(args):
@@ -98,6 +101,14 @@ def parse_args():
         elif a == "--only" and i + 1 < len(args):
             i += 1
             out["only"] = {x.strip() for x in args[i].split(",") if x.strip()}
+        elif a == "--radius-scale" and i + 1 < len(args):
+            i += 1
+            out["radius_scale"] = float(args[i])
+        elif a == "--bg" and i + 1 < len(args):
+            i += 1
+            out["bg"] = float(args[i])
+        elif a == "--clay":
+            out["clay"] = True
         elif a == "--force":
             out["force"] = True
         elif a == "--no-copy-repo":
@@ -144,14 +155,15 @@ def set_frame(frame):
     bpy.context.view_layer.update()
 
 
-def setup_world_white(scene):
+def setup_world_white(scene, level=0.72):
     world = bpy.data.worlds.new("Case01White")
     scene.world = world
     world.use_nodes = True
     nt = world.node_tree
     nt.nodes.clear()
     bg = nt.nodes.new("ShaderNodeBackground")
-    bg.inputs["Color"].default_value = (0.96, 0.96, 0.96, 1.0)
+    c = float(level)
+    bg.inputs["Color"].default_value = (c, c, c + 0.02, 1.0)
     bg.inputs["Strength"].default_value = 1.0
     out = nt.nodes.new("ShaderNodeOutputWorld")
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
@@ -172,10 +184,10 @@ def setup_studio(target, scale):
     # Scale area-light power ~ distance^2 so tiny CAD (watch cases) is not blown out.
     s = max(scale, 0.05)
     e = (s / 0.25) ** 2
-    add_area("Key", target + Vector((-0.55 * s, -0.75 * s, 0.95 * s)), target, 120.0 * e, 0.7 * s, (1.0, 0.97, 0.93))
-    add_area("Fill", target + Vector((0.85 * s, -0.35 * s, 0.55 * s)), target, 55.0 * e, 0.9 * s, (0.85, 0.90, 1.0))
-    add_area("Rim", target + Vector((0.15 * s, 0.95 * s, 0.75 * s)), target, 80.0 * e, 0.55 * s, (1.0, 0.92, 0.85))
-    add_area("Top", target + Vector((0.0, -0.1 * s, 1.4 * s)), target, 40.0 * e, 1.1 * s, (1.0, 1.0, 1.0))
+    add_area("Key", target + Vector((-0.55 * s, -0.75 * s, 0.95 * s)), target, 70.0 * e, 0.85 * s, (1.0, 0.97, 0.93))
+    add_area("Fill", target + Vector((0.85 * s, -0.35 * s, 0.55 * s)), target, 28.0 * e, 1.0 * s, (0.85, 0.90, 1.0))
+    add_area("Rim", target + Vector((0.15 * s, 0.95 * s, 0.75 * s)), target, 40.0 * e, 0.65 * s, (1.0, 0.92, 0.85))
+    add_area("Top", target + Vector((0.0, -0.1 * s, 1.4 * s)), target, 18.0 * e, 1.2 * s, (1.0, 1.0, 1.0))
 
 
 def setup_floor(z, size):
@@ -346,34 +358,56 @@ def import_model(opts):
     raise FileNotFoundError("No model input. Pass --glb / --obj / --stl / --step, or place a default GLB.")
 
 
-def apply_simple_material_if_needed():
+def apply_simple_material_if_needed(force=False, tone=(0.55, 0.57, 0.60, 1.0)):
     mat = bpy.data.materials.new("NeutralPlastic")
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     if bsdf:
-        bsdf.inputs["Base Color"].default_value = (0.82, 0.84, 0.86, 1.0)
-        bsdf.inputs["Roughness"].default_value = 0.35
+        bsdf.inputs["Base Color"].default_value = tone
+        bsdf.inputs["Roughness"].default_value = 0.42
         if "Metallic" in bsdf.inputs:
-            bsdf.inputs["Metallic"].default_value = 0.05
+            bsdf.inputs["Metallic"].default_value = 0.04
+        if "Specular IOR Level" in bsdf.inputs:
+            bsdf.inputs["Specular IOR Level"].default_value = 0.35
     for obj in bpy.data.objects:
         if obj.type != "MESH" or obj.name == "CycloramaFloor":
             continue
-        if obj.data.materials:
+        if obj.data.materials and not force:
             continue
+        obj.data.materials.clear()
         obj.data.materials.append(mat)
+
+
+def dampen_existing_materials(factor=0.62):
+    """Pull bright GLB materials down so they read on a light cyclorama."""
+    for mat in bpy.data.materials:
+        if mat.name in ("PaperWhite", "NeutralPlastic") or not mat.use_nodes:
+            continue
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if not bsdf or "Base Color" not in bsdf.inputs:
+            continue
+        col = list(bsdf.inputs["Base Color"].default_value)
+        bsdf.inputs["Base Color"].default_value = (
+            max(0.08, col[0] * factor),
+            max(0.08, col[1] * factor),
+            max(0.08, col[2] * factor),
+            col[3],
+        )
+        if "Roughness" in bsdf.inputs:
+            bsdf.inputs["Roughness"].default_value = max(0.35, min(0.7, bsdf.inputs["Roughness"].default_value))
 
 
 def shot_list(mode):
     if mode == "simple":
         return [
-            ("07-front.jpg", 1, 0, 12, 70, 0.0, 1.0),
-            ("08-three-quarter.jpg", 1, 38, 16, 70, 0.0, 1.0),
-            ("09-top.jpg", 1, 15, 72, 55, 0.0, 1.15),
-            ("10-orbit-a.jpg", 1, 90, 14, 70, 0.0, 1.0),
-            ("11-orbit-b.jpg", 1, 155, 18, 70, 0.0, 1.0),
-            ("12-detail.jpg", 1, 25, 8, 95, -0.02, 0.62),
-            ("13-rear-three-quarter.jpg", 1, 210, 16, 70, 0.0, 1.05),
-            ("14-low-angle.jpg", 1, 45, 6, 70, 0.0, 1.1),
+            ("07-front.jpg", 1, 0, 14, 65, 0.0, 1.0),
+            ("08-three-quarter.jpg", 1, 40, 18, 65, 0.0, 1.0),
+            ("09-top.jpg", 1, 20, 82, 45, 0.0, 1.55),
+            ("10-orbit-a.jpg", 1, 95, 16, 65, 0.0, 1.0),
+            ("11-orbit-b.jpg", 1, 150, 20, 65, 0.0, 1.0),
+            ("12-detail.jpg", 1, 30, 16, 75, 0.02, 0.95),
+            ("13-rear-three-quarter.jpg", 1, 215, 18, 65, 0.0, 1.05),
+            ("14-low-angle.jpg", 1, 48, 8, 60, 0.0, 1.12),
         ]
     return [
         ("07-front.jpg", FRAME_CLOSED, 0, 12, 70, 0.0, 1.0),
@@ -411,17 +445,19 @@ def main():
     else:
         set_frame(1)
 
-    if kind in ("stl", "step", "obj"):
-        apply_simple_material_if_needed()
+    if opts["clay"] or kind in ("stl", "step", "obj"):
+        apply_simple_material_if_needed(force=opts["clay"])
+    elif kind == "glb":
+        dampen_existing_materials(0.58)
 
     mins, maxs = mesh_bbox()
     center = (mins + maxs) / 2.0
     size = maxs - mins
     extent = max(size.x, size.y, size.z)
-    radius = extent * 1.55
+    radius = extent * float(opts["radius_scale"])
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
-    setup_world_white(scene)
+    setup_world_white(scene, opts["bg"])
     setup_floor(mins.z, max(size.x, size.y) * 6.0)
     setup_studio(center, extent)
     cam = setup_camera(scene, opts["res"], opts["engine"], opts["samples"])

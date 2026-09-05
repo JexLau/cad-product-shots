@@ -26,6 +26,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + 0.75rem);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -175,9 +176,11 @@ dt {
 }
 
 .btn-header {
-  display: none;
-  padding-inline: 0.85rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  max-width: min(18rem, 62vw);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 .btn-lg {
@@ -297,6 +300,11 @@ figcaption {
 
 .frame-tag {
   color: var(--steel);
+}
+
+.section,
+.footer {
+  scroll-margin-top: calc(var(--header-h) + 0.75rem);
 }
 
 .section {
@@ -422,6 +430,20 @@ dd {
   min-height: 44px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.faq summary::after {
+  content: "+";
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--steel);
+  flex: 0 0 auto;
+}
+
+.faq details[open] summary::after {
+  content: "–";
 }
 
 .faq summary::-webkit-details-marker {
@@ -493,7 +515,9 @@ dd {
   }
 
   .btn-header {
-    display: inline-flex;
+    max-width: none;
+    padding-inline: 0.85rem;
+    font-size: 0.85rem;
   }
 
   .hero-grid {

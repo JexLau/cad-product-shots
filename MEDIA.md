@@ -27,6 +27,14 @@ media/
 | `04-white-bg-c.png` | Case 2-up grid | **On the page.** Landed as PNG. Pack’s 3 white-background stills are now on the page. |
 | `05-studio-a.jpg` | Case 2-up grid — studio / detail | **On the page.** |
 | `06-studio-b.png` | Case 2-up grid — yellow-post detail | **On the page.** Landed as PNG. Pack’s 2 studio / detail stills are now on the page. |
+| `07-front.jpg` | Case gallery | **On the page.** Pipeline multi-angle (front). |
+| `08-three-quarter.jpg` | Case gallery | **On the page.** Pipeline multi-angle (3/4). |
+| `09-top.jpg` | Case gallery | **On the page.** Pipeline multi-angle (top). |
+| `10-orbit-a.jpg` | Case gallery | **On the page.** Pipeline multi-angle (orbit). |
+| `11-orbit-b.jpg` | Case gallery | **On the page.** Pipeline multi-angle (orbit). |
+| `12-detail.jpg` | Case gallery | **On the page.** Pipeline multi-angle (detail). |
+| `13-open-three-quarter.jpg` | Case gallery | **On the page.** Pipeline multi-angle (open lid). |
+| `14-open-front.jpg` | Case gallery | **On the page.** Pipeline multi-angle (open lid). |
 
 Preferred: JPEG or WebP, long edge ≥1600px, sRGB. Name, do not invent, the missing numbers.
 
@@ -58,3 +66,13 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 - Stock / marketplace “3D product” images
 - AI-generated purple / neon stand-ins
 - Invented Case #1 photography
+
+
+## Demo · open CAD packs
+
+| Pack | Path | License | Hard line |
+| --- | --- | --- | --- |
+| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | No endorsement / fake brand / logo |
+| Open e-ink watch case | `media/demo-watchy/` | MIT | Not Apple Watch; not “Watchy” shelf name |
+
+Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.

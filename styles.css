@@ -629,3 +629,45 @@ dd {
     padding: 4.25rem 0 4rem;
   }
 }
+
+/* Multi-angle denser Case gallery */
+.case-stage-gallery {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 900px) {
+  .case-stage-gallery {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .case-stage-gallery .frame-featured {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+}
+
+.case-stage-gallery .frame-tag {
+  margin-left: 0.35rem;
+}
+
+
+
+.demo-block + .demo-block {
+  margin-top: 3.25rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--line);
+}
+.demo-head { margin-bottom: 1.25rem; max-width: 48rem; }
+.demo-head h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.25rem, 2vw + 0.6rem, 1.75rem);
+  margin: 0.35rem 0 0.65rem;
+}
+.demo-head .frame-tag { display: inline-block; margin: 0; }
+.case-stage-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 900px) {
+  .case-stage-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .case-stage-gallery .frame-featured { grid-column: span 2; grid-row: span 2; }
+}

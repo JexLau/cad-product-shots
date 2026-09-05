@@ -63,7 +63,7 @@ def parse_args():
         "only": None,
         "clay": False,
         "radius_scale": 2.35,
-        "bg": 0.22,
+        "bg": 0.48,
         "exposure": -0.70,
         "light_scale": 0.40,
     }
@@ -115,6 +115,9 @@ def parse_args():
         elif a == "--light-scale" and i + 1 < len(args):
             i += 1
             out["light_scale"] = float(args[i])
+        elif a == "--dampen" and i + 1 < len(args):
+            i += 1
+            out["dampen"] = float(args[i])
         elif a == "--clay":
             out["clay"] = True
         elif a == "--force":
@@ -163,7 +166,7 @@ def set_frame(frame):
     bpy.context.view_layer.update()
 
 
-def setup_world_studio(scene, level=0.22):
+def setup_world_studio(scene, level=0.48):
     """Soft grey studio backdrop — not blown paper-white."""
     world = bpy.data.worlds.new("StudioSoftGrey")
     scene.world = world
@@ -477,7 +480,7 @@ def main():
     if opts["clay"] or kind in ("stl", "step", "obj"):
         apply_simple_material_if_needed(force=opts["clay"])
     elif kind == "glb":
-        dampen_existing_materials(0.46)
+        dampen_existing_materials(float(opts.get("dampen", 0.46)))
 
     mins, maxs = mesh_bbox()
     center = (mins + maxs) / 2.0

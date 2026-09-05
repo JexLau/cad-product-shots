@@ -42,10 +42,10 @@ There is no build step and no environment variables.
 
 ## Contact
 
-Primary CTAs keep the “Send STEP for 1 free test frame” copy but are not clickable `mailto:` links until a real inbox exists. Visible page copy says **Contact TBD**.
+Primary CTAs (hero, sticky header, footer) open `mailto:jexlau.dev@gmail.com?subject=Free%20test%20frame%20STEP`. The footer also shows `jexlau.dev@gmail.com`.
 
 ## Docs
 
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
 
-See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, one white-background still, one studio still, the orbit clip, and `media/og/share.jpg` are on the page. Do not add stock or fake 3D.
+See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Do not add stock or fake 3D.

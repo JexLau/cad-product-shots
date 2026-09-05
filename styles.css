@@ -170,7 +170,8 @@ dt {
   color: var(--cta-ink);
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+a.btn-primary:hover {
   background: var(--steel);
   color: var(--cta-ink);
 }
@@ -283,6 +284,15 @@ dt {
   text-transform: none;
   letter-spacing: 0;
   color: var(--muted);
+}
+
+.cta-note a {
+  color: var(--paper);
+  text-decoration: underline;
+}
+
+.cta-note a:hover {
+  color: var(--steel);
 }
 
 .secondary-links {
@@ -599,17 +609,14 @@ dd {
   }
 
   .case-stage {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    grid-template-columns: 1fr 1fr;
     align-items: start;
   }
 
-  .frame-featured {
-    grid-column: 1;
-    grid-row: 1 / 3;
-  }
-
+  .frame-featured,
   .frame-orbit {
     grid-column: 1 / -1;
+    grid-row: auto;
   }
 }
 

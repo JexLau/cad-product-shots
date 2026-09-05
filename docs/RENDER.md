@@ -22,9 +22,15 @@ Native `--step` fails clearly if no CAD addon is present.
 ./scripts/run_demo_renders.sh watchy   # open e-ink watch case
 ```
 
-Lighting: soft-grey studio (not paper-white), size-scaled area lights,
-`--exposure` / `--light-scale` / `--bg` knobs. Defaults bias toward readable
-product contrast (avoid blown white).
+## Lighting (P0 contrast)
+
+Soft-grey controlled studio — **not** paper-white cyclorama:
+
+- World `--bg` ~0.20–0.26 (soft grey)
+- Floor darker than world for edge separation
+- Size-scaled area lights with high key:fill ratio (`--light-scale`)
+- AgX High Contrast + `--exposure` pull-down to avoid blown highlights
+- Clay / dampened GLB materials for readable form
 
 ## Hard line
 

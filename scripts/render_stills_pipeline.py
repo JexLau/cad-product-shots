@@ -173,7 +173,7 @@ def setup_world_studio(scene, level=0.50):
     bg = nt.nodes.new("ShaderNodeBackground")
     c = float(level)
     bg.inputs["Color"].default_value = (c * 0.98, c, c * 1.03, 1.0)
-    bg.inputs["Strength"].default_value = 0.80
+    bg.inputs["Strength"].default_value = 0.65
     out = nt.nodes.new("ShaderNodeOutputWorld")
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
 
@@ -193,7 +193,7 @@ def setup_studio(target, scale, light_scale=0.28):
     # Size-scale area power ~ distance^2, then * light_scale for contrast control.
     # High key:fill ratio so form reads; avoid flat white wash.
     s = max(scale, 0.05)
-    e = max(0.06, min((s / 0.25) ** 2 * float(light_scale), 0.85))
+    e = max(0.18, min((s / 0.25) ** 2, 1.10)) * float(light_scale)
     add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
     add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
     add_area("Rim", target + Vector((0.25 * s, 1.10 * s, 0.65 * s)), target, 16.0 * e, 0.70 * s, (1.0, 0.90, 0.82))
@@ -431,7 +431,7 @@ def shot_list(mode):
         return [
             ("07-front.jpg", 1, 0, 14, 65, 0.0, 1.0),
             ("08-three-quarter.jpg", 1, 40, 18, 65, 0.0, 1.0),
-            ("09-top.jpg", 1, 28, 52, 50, 0.0, 1.22),
+            ("09-top.jpg", 1, 28, 52, 50, 0.0, 0.98),
             ("10-orbit-a.jpg", 1, 95, 16, 65, 0.0, 1.0),
             ("11-orbit-b.jpg", 1, 150, 20, 65, 0.0, 1.0),
             ("12-detail.jpg", 1, 30, 16, 75, 0.02, 0.95),
@@ -487,7 +487,7 @@ def main():
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
     setup_world_studio(scene, opts["bg"])
-    g = max(0.14, float(opts["bg"]) * 0.82)
+    g = max(0.16, float(opts["bg"]) * 0.62)
     setup_floor(mins.z, max(size.x, size.y) * 6.0, tone=(g, g * 1.01, g * 1.04, 1.0))
     setup_studio(center, extent, light_scale=opts["light_scale"])
     cam = setup_camera(scene, opts["res"], opts["engine"], opts["samples"])

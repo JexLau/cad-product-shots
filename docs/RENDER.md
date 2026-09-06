@@ -33,6 +33,7 @@ Soft-grey controlled studio — **not** paper-white cyclorama:
 - Demo packs (Ploopy / Watchy): **product materials** (shell / mesh / pad-or-insert / accents) — not white clay
 - Print-support / jig / ghost meshes hidden via `--hide-supports` (HPH-039/038/036/035); CAD source untouched
 - Ploopy: quiet fabric headband proxy (`add_ploopy_headband_proxy`, `--headband-proxy` / `--no-headband-proxy`) restores wearable silhouette after HPH-035 hide
+- Ploopy headband ends measure HPH-013/018 outer-top pads + joint plugs (not a floating thickened arc)
 - Case#1 may still use dampened GLB materials for readable form
 
 

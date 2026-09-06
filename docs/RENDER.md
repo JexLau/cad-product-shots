@@ -69,6 +69,18 @@ Same knobs for Case#1 top/detail (`_preview-dark-09.jpg`, `_preview-dark-12.jpg`
 slightly higher `--radius-scale`, and a Cycles shadow-catcher floor so the slab does not blow out.
 Explicit CLI flags still override preset knobs. Soft-grey defaults remain unchanged.
 
+## Viewer GLBs (orbit)
+
+Bake Pages-friendly assembled GLBs (same dark-premium product-mats as featured stills):
+
+```bash
+scripts/export_viewer_glbs.sh all     # Ploopy_Viewer.glb + Party_Viewer.glb
+scripts/export_viewer_glbs.sh ploopy
+scripts/export_viewer_glbs.sh watchy
+```
+
+Raw `PloopyHeadphones-RevA.glb` has no materials. Raw `Party_Model.glb` is CAD-only (no e-ink / strap / bezel). Landing `<model-viewer>` points at the baked viewer files.
+
 ## Hard line
 
 No brand-official images / fake logos. Demo · open CAD labels only.

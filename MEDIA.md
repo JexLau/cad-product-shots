@@ -80,3 +80,12 @@ Ploopy live featured stills `07`–`14` are the promoted dark-premium / DJI-bar 
 Primary source for the watch pack is SQFMI **Party** (`source/party/` + `source/Party_Model.glb`). Yatari2 and Armadillonium stay on disk as prior / archive — not featured. Live `07/08/09/12` are the promoted `_preview-dark-*` frames; `_preview-dark-*` kept; soft-grey `_preview-sg-*` remain appendix-only. Still **Demo · open CAD** — no trademark claim.
 
 Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.
+
+Interactive orbit viewers (sibling **Spin · 3D** panels under each demo gallery — featured `08` stills stay the hero):
+
+| Pack | Viewer GLB | Baked from |
+| --- | --- | --- |
+| Open headphones | `media/demo-ploopy/source/Ploopy_Viewer.glb` | `PloopyHeadphones-RevA.glb` + product-mats + hide-supports + headband join |
+| Open e-ink watch case | `media/demo-watchy/source/Party_Viewer.glb` | `Party_Model.glb` + knife-3 extras (e-ink / glass / strap / clip soften) + dark-premium mats |
+
+`<model-viewer>` is lazy-loaded when a Spin · 3D panel nears the viewport. Raw CAD GLBs stay in-repo; do not point the page at them (Ploopy source is unshaded). Default orbit uses `08` language (full product + black margin): Ploopy `1.15m` / Watchy `0.40m`, with a raised `max-camera-orbit` so model-viewer cannot clamp the pull-back into a headband crop. Watchy viewer GLB drops the 0.08-alpha glass plate so the e-ink Face stays opaque paper. The Spin · 3D stage is visually smaller than the featured still.

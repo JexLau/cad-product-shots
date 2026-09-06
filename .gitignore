@@ -2,5 +2,7 @@
 **/PloopyHeadphones-RevA.stl
 scripts/_*.txt
 scripts/_*.log
+scripts/__pycache__/
 
 .render-out/
+blender-install/

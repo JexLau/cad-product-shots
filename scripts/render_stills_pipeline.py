@@ -294,12 +294,13 @@ def setup_studio(target, scale, light_scale=0.28, style="softgrey"):
     s = max(scale, 0.05)
     e = max(0.18, min((s / 0.25) ** 2, 1.10)) * float(light_scale)
     if style == "dark":
-        # DJI-track: high rim/kicker vs fill so charcoal satin shells keep a readable edge.
-        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 20.0 * e, 0.68 * s, (1.0, 0.97, 0.92))
-        add_area("Fill", target + Vector((1.10 * s, -0.30 * s, 0.35 * s)), target, 1.8 * e, 1.40 * s, (0.72, 0.82, 1.0))
-        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 36.0 * e, 0.46 * s, (1.0, 0.93, 0.86))
-        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 16.0 * e, 0.40 * s, (0.95, 0.98, 1.0))
-        add_area("Top", target + Vector((0.0, -0.10 * s, 1.70 * s)), target, 2.4 * e, 1.20 * s, (0.95, 0.97, 1.0))
+        # Ploopy-pass language: rim/kicker cut silhouette; key restrained so flat shells
+        # stay charcoal satin (not silver spray wash).
+        add_area("Key", target + Vector((-0.70 * s, -1.10 * s, 0.75 * s)), target, 12.0 * e, 0.50 * s, (1.0, 0.97, 0.92))
+        add_area("Fill", target + Vector((1.20 * s, -0.40 * s, 0.22 * s)), target, 0.85 * e, 1.55 * s, (0.68, 0.78, 1.0))
+        add_area("Rim", target + Vector((0.40 * s, 1.30 * s, 0.80 * s)), target, 42.0 * e, 0.34 * s, (1.0, 0.94, 0.88))
+        add_area("Kicker", target + Vector((-1.00 * s, 0.90 * s, 0.60 * s)), target, 22.0 * e, 0.28 * s, (0.90, 0.95, 1.0))
+        add_area("Top", target + Vector((0.05 * s, -0.08 * s, 1.90 * s)), target, 1.2 * e, 1.00 * s, (0.95, 0.97, 1.0))
     else:
         add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
         add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
@@ -1041,18 +1042,28 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad", dark_premium=False):
 
 
 
-def _eink_face_texture_path():
+def _eink_face_texture_path(dark_toned=False):
     here = Path(__file__).resolve().parent
     base = here.parent / "media" / "demo-watchy" / "source"
-    for cand in (base / "party" / "Face.png", base / "eink_face_restrained.png"):
+    if dark_toned:
+        order = (
+            base / "eink_face_dark_toned.png",
+            base / "eink_face_restrained.png",
+            base / "party" / "Face.png",
+        )
+    else:
+        order = (base / "party" / "Face.png", base / "eink_face_restrained.png")
+    for cand in order:
         if cand.is_file():
             return cand
     return None
 
 
-def _make_eink_screen_material(name="Prod_InsertScreen"):
-    mat = _make_principled(name, (0.48, 0.50, 0.44), 0.82, 0.0, 0.06, sheen=0.05, coat=0.0)
-    tex_path = _eink_face_texture_path()
+def _make_eink_screen_material(name="Prod_InsertScreen", dark_toned=False):
+    # Dark-premium: muted e-ink paper (not high-key white sticker).
+    base_col = (0.22, 0.23, 0.20) if dark_toned else (0.48, 0.50, 0.44)
+    mat = _make_principled(name, base_col, 0.86, 0.0, 0.04, sheen=0.04, coat=0.0)
+    tex_path = _eink_face_texture_path(dark_toned=dark_toned)
     if not tex_path:
         print("EINK_TEX missing; flat paper only", flush=True)
         return mat
@@ -1064,20 +1075,40 @@ def _make_eink_screen_material(name="Prod_InsertScreen"):
     tex.interpolation = "Closest"
     coord = nt.nodes.new("ShaderNodeTexCoord")
     nt.links.new(coord.outputs["UV"], tex.inputs["Vector"])
-    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if dark_toned:
+        # Soft HSV value pull so even Face.png midtones stay under glass (not chalk paper).
+        hsv = nt.nodes.new("ShaderNodeHueSaturation")
+        hsv.inputs["Value"].default_value = 0.70
+        hsv.inputs["Saturation"].default_value = 0.75
+        hsv.inputs["Fac"].default_value = 1.0
+        nt.links.new(tex.outputs["Color"], hsv.inputs["Color"])
+        nt.links.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+    else:
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     if "Emission Strength" in bsdf.inputs:
         bsdf.inputs["Emission Strength"].default_value = 0.0
-    print(f"EINK_TEX {tex_path.name}", flush=True)
+    print(f"EINK_TEX {tex_path.name} dark_toned={dark_toned}", flush=True)
     return mat
 
 
 def _make_screen_glass_material(name="Prod_ScreenGlass"):
-    mat = _make_principled(name, (0.05, 0.055, 0.06), 0.08, 0.0, 0.65, sheen=0.0, coat=0.70)
+    """Thin cover glass: specular/Fresnel coat over UI — avoid solid transmission (black void)."""
+    mat = _make_principled(name, (0.55, 0.58, 0.62), 0.06, 0.0, 0.85, sheen=0.0, coat=1.0)
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
-    if bsdf and "Alpha" in bsdf.inputs:
-        bsdf.inputs["Alpha"].default_value = 0.18
+    if not bsdf:
+        return mat
+    if "Coat Roughness" in bsdf.inputs:
+        bsdf.inputs["Coat Roughness"].default_value = 0.04
+    if "IOR" in bsdf.inputs:
+        bsdf.inputs["IOR"].default_value = 1.45
+    if "Transmission Weight" in bsdf.inputs:
+        bsdf.inputs["Transmission Weight"].default_value = 0.0
+    if "Alpha" in bsdf.inputs:
+        # Thin clear sheet; coat/specular carry Fresnel glints over muted e-ink.
+        bsdf.inputs["Alpha"].default_value = 0.16
         try:
             mat.blend_method = "BLEND"
+            mat.shadow_method = "NONE"
         except Exception:
             pass
     return mat
@@ -1161,21 +1192,48 @@ def assign_product_materials(kind="auto", dark_premium=False):
         return "ploopy"
 
     if kind == "watchy":
-        mat_case = _make_principled(
-            "Prod_CasePlastic", (0.040, 0.042, 0.046), 0.34, 0.0, 0.48, sheen=0.0, coat=0.24
-        )
-        mat_insert = _make_eink_screen_material("Prod_InsertScreen")
+        # Knife-2: satin engineering plastic body (not uniform silver spray).
+        # Local cold metal only on lug accents; buckle tip stays quiet silicone/plastic.
+        if dark_premium:
+            # Charcoal injection-mold satin — flat watch faces wash to silver if brighter.
+            mat_case = _make_principled(
+                "Prod_CasePlastic", (0.022, 0.023, 0.026), 0.58, 0.0, 0.18, sheen=0.0, coat=0.04
+            )
+            _add_micro_bump(mat_case, strength=0.028, scale=80.0)
+            mat_insert = _make_eink_screen_material("Prod_InsertScreen", dark_toned=True)
+            mat_btn = _make_principled(
+                "Prod_Button", (0.050, 0.052, 0.056), 0.40, 0.0, 0.32, sheen=0.0, coat=0.08
+            )
+            # Cold dark metal — only short lug pieces (local accents, not whole shell).
+            mat_lug = _make_principled(
+                "Prod_MetalAccent", (0.16, 0.17, 0.19), 0.32, 0.68, 0.42, sheen=0.0, coat=0.10
+            )
+            mat_strap = _make_principled(
+                "Prod_Strap", (0.008, 0.008, 0.009), 0.90, 0.0, 0.05, sheen=0.58, coat=0.0
+            )
+            _add_micro_bump(mat_strap, strength=0.06, scale=16.0)
+            mat_buckle = _make_principled(
+                "Prod_Buckle", (0.012, 0.011, 0.011), 0.85, 0.0, 0.06, sheen=0.40, coat=0.0
+            )
+        else:
+            mat_case = _make_principled(
+                "Prod_CasePlastic", (0.040, 0.042, 0.046), 0.34, 0.0, 0.48, sheen=0.0, coat=0.24
+            )
+            mat_insert = _make_eink_screen_material("Prod_InsertScreen", dark_toned=False)
+            mat_btn = _make_principled(
+                "Prod_Button", (0.14, 0.15, 0.16), 0.30, 0.05, 0.42, sheen=0.0, coat=0.16
+            )
+            mat_lug = _make_principled(
+                "Prod_MetalAccent", (0.28, 0.29, 0.32), 0.30, 0.55, 0.42, sheen=0.0, coat=0.10
+            )
+            mat_strap = _make_principled(
+                "Prod_Strap", (0.012, 0.012, 0.014), 0.92, 0.0, 0.04, sheen=0.55, coat=0.0
+            )
+            _add_micro_bump(mat_strap, strength=0.035, scale=22.0)
+            mat_buckle = _make_principled(
+                "Prod_Buckle", (0.09, 0.09, 0.10), 0.34, 0.42, 0.40, sheen=0.0, coat=0.14
+            )
         mat_glass = _make_screen_glass_material("Prod_ScreenGlass")
-        mat_btn = _make_principled(
-            "Prod_Button", (0.14, 0.15, 0.16), 0.30, 0.10, 0.42, sheen=0.0, coat=0.22
-        )
-        mat_strap = _make_principled(
-            "Prod_Strap", (0.012, 0.012, 0.014), 0.92, 0.0, 0.04, sheen=0.55, coat=0.0
-        )
-        _add_micro_bump(mat_strap, strength=0.035, scale=22.0)
-        mat_buckle = _make_principled(
-            "Prod_Buckle", (0.09, 0.09, 0.10), 0.34, 0.42, 0.40, sheen=0.0, coat=0.14
-        )
         for obj in meshes:
             key = _mesh_key(obj).lower()
             nl = obj.name.lower()
@@ -1183,7 +1241,9 @@ def assign_product_materials(kind="auto", dark_premium=False):
                 mat = mat_glass
             elif "watchyscreen" in nl or "screeninsert" in nl:
                 mat = mat_insert
-            elif "watchystrapbuckle" in nl:
+            elif "watchystraplug" in nl:
+                mat = mat_lug
+            elif "watchystrapbuckle" in nl or "watchystrapkeeper" in nl:
                 mat = mat_buckle
             elif "watchystrap" in nl:
                 mat = mat_strap
@@ -1192,7 +1252,10 @@ def assign_product_materials(kind="auto", dark_premium=False):
             else:
                 mat = mat_case
             _assign_single(obj, mat)
-        print("PRODUCT_MATS watchy case/eink+glass/button/strap", flush=True)
+        print(
+            f"PRODUCT_MATS watchy case/eink+glass/button/strap dark_premium={bool(dark_premium)}",
+            flush=True,
+        )
         return "watchy"
 
     mat = _make_principled("Prod_Neutral", (0.30, 0.31, 0.33), 0.46, 0.03, 0.40)
@@ -1323,25 +1386,35 @@ def main():
             flush=True,
         )
     elif use_product and lighting == "dark":
-        opts["world_strength"] = min(float(opts.get("world_strength", 0.22)), 0.14)
-        opts["light_scale"] = min(float(opts.get("light_scale", 0.34)), 0.28)
-        opts["exposure"] = min(float(opts.get("exposure", -0.65)), -0.58)
+        opts["world_strength"] = min(float(opts.get("world_strength", 0.22)), 0.12)
+        # Watchy: keep light_scale a hair higher so boosted rim/kicker can cut the silhouette
+        # without raising fill (gate 4 — deep studio, not lab floor pool).
+        if is_watchy:
+            # Flat Party shell washes silver under Ploopy-scale energy; keep rim ratio but lower absolute.
+            opts["light_scale"] = min(float(opts.get("light_scale", 0.34)), 0.13)
+            opts["exposure"] = min(float(opts.get("exposure", -0.65)), -1.15)
+            opts["bg"] = min(float(opts.get("bg", 0.03)), 0.012)
+        else:
+            opts["light_scale"] = min(float(opts.get("light_scale", 0.34)), 0.28)
+            opts["exposure"] = min(float(opts.get("exposure", -0.65)), -0.58)
         print(
             f"PRODUCT_DARK_LIGHTING world_strength={opts['world_strength']} "
-            f"light_scale={opts['light_scale']} exposure={opts['exposure']}",
+            f"light_scale={opts['light_scale']} exposure={opts['exposure']} "
+            f"bg={opts['bg']} watchy={is_watchy}",
             flush=True,
         )
     world_name = "StudioDark" if lighting == "dark" else "StudioSoftGrey"
     setup_world_studio(scene, opts["bg"], strength=opts.get("world_strength", 0.65), name=world_name)
     if lighting == "dark":
-        g = max(0.008, float(opts["bg"]) * 0.40)
-        floor_tone = (g, g * 1.02, g * 1.05, 1.0)
+        # Near-void floor: kill lab light pool (gate 4). Shadow-catcher + almost black.
+        g = max(0.004, float(opts["bg"]) * 0.22)
+        floor_tone = (g, g * 1.01, g * 1.03, 1.0)
         setup_floor(
             mins.z,
             max(size.x, size.y) * 6.0,
             tone=floor_tone,
-            roughness=0.95,
-            specular=0.02,
+            roughness=0.98,
+            specular=0.01,
             mat_name="DarkStudioFloor",
             shadow_catcher=True,
         )
@@ -1350,6 +1423,17 @@ def main():
         floor_tone = (g, g * 1.01, g * 1.04, 1.0)
         setup_floor(mins.z, max(size.x, size.y) * 6.0, tone=floor_tone)
     setup_studio(center, extent, light_scale=opts["light_scale"], style=lighting)
+    if lighting == "dark" and is_watchy:
+        # Extra attenuation on Key/Fill/Top; keep Rim/Kicker relatively stronger (edge cut).
+        for obj in bpy.data.objects:
+            if obj.type != "LIGHT":
+                continue
+            name = obj.name
+            if name in ("Key", "Fill", "Top"):
+                obj.data.energy *= 0.72
+            elif name in ("Rim", "Kicker"):
+                obj.data.energy *= 0.95
+        print("WATCHY_LIGHT_TRIM key/fill/top*0.72 rim/kicker*0.95", flush=True)
     cam = setup_camera(scene, opts["res"], opts["engine"], opts["samples"])
     apply_exposure(scene, opts["exposure"])
     print(

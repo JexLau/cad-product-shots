@@ -244,7 +244,8 @@ def add_watchy_screen_insert(pocket):
     sz = max(1e-4, pocket["z1"] - pocket["z0"])
     case_y = max(1e-4, pocket["maxs"].y - pocket["mins"].y)
     thickness = max(0.00028, 0.040 * case_y)
-    glass_t = max(0.00010, 0.012 * case_y)
+    # Knife-2: thinner cover glass so Fresnel reads as a sheet, not a slab.
+    glass_t = max(0.00006, 0.007 * case_y)
     cx = 0.5 * (pocket["x0"] + pocket["x1"])
     cz = 0.5 * (pocket["z0"] + pocket["z1"])
     y_insert = pocket["y"]
@@ -262,26 +263,44 @@ def add_watchy_screen_insert(pocket):
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     glass = bpy.context.object
     glass.name = "WatchyScreenGlass"
-    glass.scale = (sx * 1.01, glass_t, sz * 1.01)
-    glass.location = (cx, y_insert - 0.65 * thickness - 0.5 * glass_t, cz)
+    glass.scale = (sx * 1.005, glass_t, sz * 1.005)
+    glass.location = (cx, y_insert - 0.55 * thickness - 0.55 * glass_t, cz)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     print(
-        f"WATCHY_EXTRAS screen {obj.name} size=({sx:.4f},{thickness:.4f},{sz:.4f}) y={y_insert:.4f} + glass",
+        f"WATCHY_EXTRAS screen {obj.name} size=({sx:.4f},{thickness:.4f},{sz:.4f}) y={y_insert:.4f} + glass_t={glass_t:.5f}",
         flush=True,
     )
     return obj
 
 
+
+def _bevel_light(obj, width=0.00018, segments=2):
+    """Soft silicone edge — cubes alone read as fixture rails."""
+    try:
+        mod = obj.modifiers.new(name="StrapBevel", type="BEVEL")
+        mod.width = float(width)
+        mod.segments = int(segments)
+        mod.limit_method = "ANGLE"
+        mod.angle_limit = 0.5
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    except Exception as exc:
+        print(f"WATCHY_EXTRAS bevel skip {obj.name}: {exc}", flush=True)
+
+
 def add_watchy_strap(pocket):
+    """Consumer silicone strap — not an industrial rail / work-fixture band."""
     mins, maxs = pocket["mins"], pocket["maxs"]
     size = maxs - mins
     cx = 0.5 * (mins.x + maxs.x)
-    strap_w = max(0.010, min(0.019, 0.44 * size.x))
-    strap_t = max(0.00085, 0.14 * size.y)
-    y_strap = mins.y + 0.40 * size.y
-    overhang = max(0.030, 0.90 * size.z)
-    dial_z0 = pocket["z0"] - 0.02 * size.z
-    dial_z1 = pocket["z1"] + 0.02 * size.z
+    # Knife-2: slightly wider + thinner = wrist strap, not fixture bar.
+    strap_w = max(0.012, min(0.022, 0.52 * size.x))
+    strap_t = max(0.00055, 0.095 * size.y)
+    y_strap = mins.y + 0.38 * size.y
+    overhang = max(0.026, 0.78 * size.z)
+    dial_z0 = pocket["z0"] - 0.015 * size.z
+    dial_z1 = pocket["z1"] + 0.015 * size.z
 
     def _band(name, z0, z1, y=None, w_scale=1.0, t_scale=1.0):
         length = max(1e-4, z1 - z0)
@@ -295,24 +314,59 @@ def add_watchy_strap(pocket):
 
     _band("WatchyStrapSouth", mins.z - overhang, dial_z0)
     north = _band("WatchyStrapNorth", dial_z1, maxs.z + overhang)
-    _band("WatchyStrap", mins.z + 0.02 * size.z, maxs.z - 0.02 * size.z, y=maxs.y - 0.18 * size.y, w_scale=0.88, t_scale=0.72)
-    _band("WatchyStrapLugNorth", dial_z1 - 0.02 * size.z, dial_z1 + 0.03 * size.z, y=y_strap + 0.04 * size.y, w_scale=1.05, t_scale=1.15)
-    _band("WatchyStrapLugSouth", dial_z0 - 0.03 * size.z, dial_z0 + 0.02 * size.z, y=y_strap + 0.04 * size.y, w_scale=1.05, t_scale=1.15)
-    keeper_z = maxs.z + 0.28 * overhang
-    for i, name in enumerate(("WatchyStrapKeeperA", "WatchyStrapKeeperB")):
-        bpy.ops.mesh.primitive_cube_add(size=1.0)
-        k = bpy.context.object
-        k.name = name
-        k.scale = (strap_w * 1.08, strap_t * 1.7, strap_t * 1.35)
-        k.location = (cx, y_strap, keeper_z + i * strap_t * 2.5)
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # Quiet rear pass-through (hidden-ish under case) — keep thinner.
+    _band(
+        "WatchyStrap",
+        mins.z + 0.04 * size.z,
+        maxs.z - 0.04 * size.z,
+        y=maxs.y - 0.22 * size.y,
+        w_scale=0.82,
+        t_scale=0.58,
+    )
+    # Local cold-metal lug accents (short, flush) — not long rails.
+    _band(
+        "WatchyStrapLugNorth",
+        dial_z1 - 0.012 * size.z,
+        dial_z1 + 0.018 * size.z,
+        y=y_strap + 0.02 * size.y,
+        w_scale=1.02,
+        t_scale=1.05,
+    )
+    _band(
+        "WatchyStrapLugSouth",
+        dial_z0 - 0.018 * size.z,
+        dial_z0 + 0.012 * size.z,
+        y=y_strap + 0.02 * size.y,
+        w_scale=1.02,
+        t_scale=1.05,
+    )
+    # Single soft silicone keeper (drop second fixture ring).
+    keeper_z = maxs.z + 0.22 * overhang
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    k = bpy.context.object
+    k.name = "WatchyStrapKeeperA"
+    k.scale = (strap_w * 1.04, strap_t * 1.35, strap_t * 0.95)
+    k.location = (cx, y_strap, keeper_z)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # Tip loop: same silicone family as strap (not a bright metal buckle plate).
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     buckle = bpy.context.object
     buckle.name = "WatchyStrapBuckle"
-    buckle.scale = (strap_w * 0.90, strap_t * 1.3, strap_t * 3.0)
-    buckle.location = (cx, y_strap, maxs.z + 0.55 * overhang)
+    buckle.scale = (strap_w * 0.78, strap_t * 0.95, strap_t * 2.2)
+    buckle.location = (cx, y_strap, maxs.z + 0.48 * overhang)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    print(f"WATCHY_EXTRAS strap w={strap_w:.4f} t={strap_t:.4f} overhang={overhang:.4f}", flush=True)
+    for nm in (
+        "WatchyStrapSouth",
+        "WatchyStrapNorth",
+        "WatchyStrapKeeperA",
+        "WatchyStrapBuckle",
+        "WatchyStrapLugNorth",
+        "WatchyStrapLugSouth",
+    ):
+        o = bpy.data.objects.get(nm)
+        if o:
+            _bevel_light(o, width=max(0.00012, 0.22 * strap_t), segments=3)
+    print(f"WATCHY_EXTRAS strap w={strap_w:.4f} t={strap_t:.4f} overhang={overhang:.4f} (silicone knife-2)", flush=True)
     return north
 
 

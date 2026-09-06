@@ -1040,6 +1040,49 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad", dark_premium=False):
 
 
 
+
+def _eink_face_texture_path():
+    here = Path(__file__).resolve().parent
+    base = here.parent / "media" / "demo-watchy" / "source"
+    for cand in (base / "party" / "Face.png", base / "eink_face_restrained.png"):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def _make_eink_screen_material(name="Prod_InsertScreen"):
+    mat = _make_principled(name, (0.48, 0.50, 0.44), 0.82, 0.0, 0.06, sheen=0.05, coat=0.0)
+    tex_path = _eink_face_texture_path()
+    if not tex_path:
+        print("EINK_TEX missing; flat paper only", flush=True)
+        return mat
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    img = bpy.data.images.load(str(tex_path), check_existing=True)
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    tex.interpolation = "Closest"
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    nt.links.new(coord.outputs["UV"], tex.inputs["Vector"])
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    if "Emission Strength" in bsdf.inputs:
+        bsdf.inputs["Emission Strength"].default_value = 0.0
+    print(f"EINK_TEX {tex_path.name}", flush=True)
+    return mat
+
+
+def _make_screen_glass_material(name="Prod_ScreenGlass"):
+    mat = _make_principled(name, (0.05, 0.055, 0.06), 0.08, 0.0, 0.65, sheen=0.0, coat=0.70)
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf and "Alpha" in bsdf.inputs:
+        bsdf.inputs["Alpha"].default_value = 0.18
+        try:
+            mat.blend_method = "BLEND"
+        except Exception:
+            pass
+    return mat
+
+
 def assign_product_materials(kind="auto", dark_premium=False):
     """Assignable product plastics — not white/lavender clay (Rams surface DoD).
 
@@ -1061,6 +1104,8 @@ def assign_product_materials(kind="auto", dark_premium=False):
             or n.startswith("bottom")
             or "pole02" in n
             or "yatari" in n
+            or "party" in n
+            or "case_top" in n
             or "watchyscreen" in n
             or "watchystrap" in n
             for n in names | data_names
@@ -1116,38 +1161,27 @@ def assign_product_materials(kind="auto", dark_premium=False):
         return "ploopy"
 
     if kind == "watchy":
-        # Yatari2 remodel: dark satin case, light e-ink insert plane, light-grey buttons,
-        # soft dark strap — geometry extras named WatchyScreen* / WatchyStrap*.
         mat_case = _make_principled(
-            "Prod_CasePlastic", (0.022, 0.024, 0.028), 0.42, 0.0, 0.38, sheen=0.0, coat=0.14
+            "Prod_CasePlastic", (0.040, 0.042, 0.046), 0.34, 0.0, 0.48, sheen=0.0, coat=0.24
         )
-        mat_insert = _make_principled(
-            "Prod_InsertScreen", (0.82, 0.84, 0.78), 0.62, 0.0, 0.10, sheen=0.04, coat=0.0
-        )
-        # Tiny emission so e-ink stays readable under product softgrey underexposure.
-        try:
-            nt = mat_insert.node_tree
-            bsdf = nt.nodes.get("Principled BSDF")
-            if bsdf and "Emission Color" in bsdf.inputs:
-                bsdf.inputs["Emission Color"].default_value = (0.75, 0.77, 0.70, 1.0)
-                if "Emission Strength" in bsdf.inputs:
-                    bsdf.inputs["Emission Strength"].default_value = 0.18
-        except Exception:
-            pass
+        mat_insert = _make_eink_screen_material("Prod_InsertScreen")
+        mat_glass = _make_screen_glass_material("Prod_ScreenGlass")
         mat_btn = _make_principled(
-            "Prod_Button", (0.42, 0.43, 0.45), 0.34, 0.12, 0.42, sheen=0.0, coat=0.16
+            "Prod_Button", (0.14, 0.15, 0.16), 0.30, 0.10, 0.42, sheen=0.0, coat=0.22
         )
         mat_strap = _make_principled(
-            "Prod_Strap", (0.018, 0.018, 0.020), 0.88, 0.0, 0.06, sheen=0.45, coat=0.0
+            "Prod_Strap", (0.012, 0.012, 0.014), 0.92, 0.0, 0.04, sheen=0.55, coat=0.0
         )
-        _add_micro_bump(mat_strap, strength=0.03, scale=18.0)
+        _add_micro_bump(mat_strap, strength=0.035, scale=22.0)
         mat_buckle = _make_principled(
-            "Prod_Buckle", (0.12, 0.12, 0.13), 0.40, 0.35, 0.35, sheen=0.0, coat=0.12
+            "Prod_Buckle", (0.09, 0.09, 0.10), 0.34, 0.42, 0.40, sheen=0.0, coat=0.14
         )
         for obj in meshes:
             key = _mesh_key(obj).lower()
             nl = obj.name.lower()
-            if "watchyscreen" in nl or "screeninsert" in nl:
+            if "watchyscreenglass" in nl:
+                mat = mat_glass
+            elif "watchyscreen" in nl or "screeninsert" in nl:
                 mat = mat_insert
             elif "watchystrapbuckle" in nl:
                 mat = mat_buckle
@@ -1155,14 +1189,10 @@ def assign_product_materials(kind="auto", dark_premium=False):
                 mat = mat_strap
             elif "button" in key or "button" in nl:
                 mat = mat_btn
-            elif key.startswith("top") or nl.startswith("top"):
-                mat = mat_case
-            elif key.startswith("bottom") or nl.startswith("bottom") or "pole02" in nl:
-                mat = mat_case
             else:
                 mat = mat_case
             _assign_single(obj, mat)
-        print("PRODUCT_MATS watchy case/screen/button/strap", flush=True)
+        print("PRODUCT_MATS watchy case/eink+glass/button/strap", flush=True)
         return "watchy"
 
     mat = _make_principled("Prod_Neutral", (0.30, 0.31, 0.33), 0.46, 0.03, 0.40)
@@ -1173,8 +1203,19 @@ def assign_product_materials(kind="auto", dark_premium=False):
 
 
 
-def shot_list(mode):
+def shot_list(mode, watchy_thin=False):
     if mode == "simple":
+        if watchy_thin:
+            return [
+                ("07-front.jpg", 1, 4, 9, 90, 0.01, 1.18),
+                ("08-three-quarter.jpg", 1, 26, 10, 95, 0.01, 1.22),
+                ("09-top.jpg", 1, 16, 60, 55, 0.0, 1.12),
+                ("10-orbit-a.jpg", 1, 95, 12, 85, 0.0, 1.12),
+                ("11-orbit-b.jpg", 1, 150, 14, 85, 0.0, 1.12),
+                ("12-detail.jpg", 1, 20, 10, 100, 0.012, 0.86),
+                ("13-rear-three-quarter.jpg", 1, 208, 12, 90, 0.0, 1.18),
+                ("14-low-angle.jpg", 1, 28, 5, 85, 0.0, 1.22),
+            ]
         return [
             ("07-front.jpg", 1, 0, 14, 65, 0.0, 1.0),
             ("08-three-quarter.jpg", 1, 40, 18, 65, 0.0, 1.0),
@@ -1263,7 +1304,14 @@ def main():
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
     lighting = opts.get("lighting") or "softgrey"
-    # Product-mat demos: pull world/lights down so tinted plastics stay readable (not chalk).
+    is_watchy = any(
+        any(
+            k in (o.name or "").lower() or k in (getattr(o.data, "name", "") or "").lower()
+            for k in ("party", "watchyscreen", "watchystrap", "case_top", "yatari")
+        )
+        for o in bpy.data.objects
+        if o.type == "MESH"
+    )
     if use_product and lighting != "dark":
         # Keep satin readable without chalking mid-greys to clay white (Rams surface gate 1/4).
         opts["world_strength"] = min(float(opts.get("world_strength", 0.65)), 0.28)
@@ -1271,6 +1319,15 @@ def main():
         opts["exposure"] = min(float(opts.get("exposure", -0.70)), -1.05)
         print(
             f"PRODUCT_LIGHTING world_strength={opts['world_strength']} "
+            f"light_scale={opts['light_scale']} exposure={opts['exposure']}",
+            flush=True,
+        )
+    elif use_product and lighting == "dark":
+        opts["world_strength"] = min(float(opts.get("world_strength", 0.22)), 0.14)
+        opts["light_scale"] = min(float(opts.get("light_scale", 0.34)), 0.28)
+        opts["exposure"] = min(float(opts.get("exposure", -0.65)), -0.58)
+        print(
+            f"PRODUCT_DARK_LIGHTING world_strength={opts['world_strength']} "
             f"light_scale={opts['light_scale']} exposure={opts['exposure']}",
             flush=True,
         )
@@ -1302,7 +1359,8 @@ def main():
         flush=True,
     )
 
-    shots = shot_list(shots_mode)
+    watchy_thin = bool(locals().get("is_watchy")) or bool(opts.get("watchy_extras"))
+    shots = shot_list(shots_mode, watchy_thin=watchy_thin and shots_mode == "simple")
     if opts["only"]:
         shots = [s for s in shots if s[0] in opts["only"]]
         if not shots:

@@ -73,6 +73,7 @@ def parse_args():
         "world_strength": 0.65,
         "hide_supports": False,
         "product_mats": False,
+        "headband_proxy": True,
         "hide_names": None,
     }
     explicit = set()
@@ -157,6 +158,12 @@ def parse_args():
         elif a == "--hide-names" and i + 1 < len(args):
             i += 1
             out["hide_names"] = {x.strip() for x in args[i].split(",") if x.strip()}
+        elif a == "--headband-proxy":
+            out["headband_proxy"] = True
+            explicit.add("headband_proxy")
+        elif a == "--no-headband-proxy":
+            out["headband_proxy"] = False
+            explicit.add("headband_proxy")
         elif a == "--force":
             out["force"] = True
         elif a == "--no-copy-repo":
@@ -551,7 +558,11 @@ def satinize_overmetallic(max_metallic=0.12):
 # Kept as product: HPH-013/018 earcups, HPH-032 driver rings, HPH-033/037 sliders.
 # HPH-035 bare serpentine flexbars hidden for Rams DoD (fabric-covered band not in CAD;
 #   otherwise reads as print-support serpentine in featured stills).
+# Wearable silhouette restored via add_ploopy_headband_proxy() (quiet Bezier fabric arc).
 PLOOPY_HIDE_MESH_PREFIXES = ("HPH-039", "HPH-038", "HPH-036", "HPH-035")
+# One-sided slider stubs (no left twin in this GLB) — hidden only when headband proxy
+# replaces the wearable bridge so featured stills are not right-yoke-only.
+PLOOPY_HIDE_WITH_PROXY = ("HPH-037", "HPH-033")
 SUPPORT_NAME_HINTS = (
     "support", "scaffold", "lattice", "stand", "jig", "brim", "raft", "helper",
 )
@@ -588,6 +599,171 @@ def hide_print_supports(extra_names=None, enabled=True):
             hidden.append(f"{obj.name}/{key} ({reason})")
     print(f"HIDE_SUPPORTS {len(hidden)}: {hidden}", flush=True)
     return hidden
+
+
+def _world_bbox(obj):
+    mins = Vector((1e9, 1e9, 1e9))
+    maxs = Vector((-1e9, -1e9, -1e9))
+    for corner in obj.bound_box:
+        w = obj.matrix_world @ Vector(corner)
+        mins = Vector(tuple(min(mins[i], w[i]) for i in range(3)))
+        maxs = Vector(tuple(max(maxs[i], w[i]) for i in range(3)))
+    return mins, maxs
+
+
+def _tube_along_path(path, tube_r, n_side=14, oval=(1.08, 0.72)):
+    """Build a smooth oval tube mesh along a list of Vectors."""
+    if len(path) < 2:
+        return None
+    tangents = []
+    for i in range(len(path)):
+        if i == 0:
+            tangents.append((path[1] - path[0]).normalized())
+        elif i == len(path) - 1:
+            tangents.append((path[i] - path[i - 1]).normalized())
+        else:
+            tangents.append((path[i + 1] - path[i - 1]).normalized())
+
+    verts = []
+    faces = []
+    up = Vector((0.0, 1.0, 0.0))
+    rx, ry = tube_r * oval[0], tube_r * oval[1]
+    n_path = len(path) - 1
+    for i, (p, tang) in enumerate(zip(path, tangents)):
+        side = tang.cross(up)
+        if side.length < 1e-6:
+            side = tang.cross(Vector((1.0, 0.0, 0.0)))
+        side.normalize()
+        normal = side.cross(tang).normalized()
+        for s in range(n_side):
+            ang = (2.0 * math.pi * s) / n_side
+            offset = side * (math.cos(ang) * rx) + normal * (math.sin(ang) * ry)
+            verts.append(p + offset)
+        if i > 0:
+            base = i * n_side
+            prev = (i - 1) * n_side
+            for s in range(n_side):
+                s2 = (s + 1) % n_side
+                faces.append((prev + s, prev + s2, base + s2, base + s))
+
+    for end_i, rev in ((0, False), (n_path, True)):
+        center_idx = len(verts)
+        verts.append(Vector(path[end_i]))
+        ring = end_i * n_side
+        for s in range(n_side):
+            s2 = (s + 1) % n_side
+            if rev:
+                faces.append((center_idx, ring + s2, ring + s))
+            else:
+                faces.append((center_idx, ring + s, ring + s2))
+
+    mesh = bpy.data.meshes.new("PloopyHeadbandProxyMesh")
+    mesh.from_pydata([(v.x, v.y, v.z) for v in verts], [], faces)
+    mesh.update()
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+    return mesh
+
+
+def add_ploopy_headband_proxy(enabled=True):
+    """Quiet fabric/soft-plastic arc + side yokes bridging earcups.
+
+    HPH-035 serpentine stays hidden. Continuous wearable silhouette at 1m.
+    """
+    if not enabled:
+        print("HEADBAND_PROXY off", flush=True)
+        return None
+    cups = {}
+    for obj in bpy.data.objects:
+        if obj.type != "MESH" or obj.hide_render or obj.name in ("CycloramaFloor", "PloopyHeadbandProxy"):
+            continue
+        key = _mesh_key(obj)
+        if key in ("HPH-013", "HPH-018"):
+            cups[key] = obj
+    if "HPH-013" not in cups or "HPH-018" not in cups:
+        print("HEADBAND_PROXY skip (no earcups)", flush=True)
+        return None
+
+    # Hide incomplete one-sided slider stubs so the quiet arc is the only bridge.
+    for obj in list(bpy.data.objects):
+        if obj.type != "MESH":
+            continue
+        key = _mesh_key(obj)
+        if key in PLOOPY_HIDE_WITH_PROXY:
+            obj.hide_render = True
+            obj.hide_viewport = True
+
+    lm, lM = _world_bbox(cups["HPH-013"])
+    rm, rM = _world_bbox(cups["HPH-018"])
+    y0 = 0.5 * (((lm.y + lM.y) * 0.5) + ((rm.y + rM.y) * 0.5)) + 0.004
+    cup_top = max(lM.z, rM.z)
+    cup_mid_z = 0.5 * (((lm.z + lM.z) * 0.5) + ((rm.z + rM.z) * 0.5))
+    # Outer faces of earcups — yoke lands here (wearable C-shape)
+    x_left = lm.x - 0.002
+    x_right = rM.x + 0.002
+    half = 0.5 * (x_right - x_left)
+    cx = 0.5 * (x_left + x_right)
+
+    # Ellipse center below cup tops so ends dive into cup sides; tall crown
+    z_center = cup_top - 0.028
+    b = max(0.118, half * 1.35)  # crown ~ cup_top + 0.09
+    a = half * 1.02
+    tube_r = max(0.0125, half * 0.110)
+
+    # Path: left yoke (up from cup) → crown arc → right yoke
+    # Use t from ~0.08*pi to ~0.92*pi would stay high; instead full pi with low center
+    n_arc = 48
+    path = []
+    for i in range(n_arc + 1):
+        t = math.pi * (1.0 - i / n_arc)  # pi -> 0 (left -> right)
+        x = cx + a * math.cos(t)
+        z = z_center + b * math.sin(t)
+        y = y0 + 0.018 * math.sin(t)
+        path.append(Vector((x, y, z)))
+
+    # Extra yoke stubs: continue down from arc ends toward cup outer mid-upper
+    def yoke_points(outer_x, side_sign):
+        # From cup outer up to matching arc end (inclusive).
+        top = path[0] if side_sign < 0 else path[-1]
+        mid = Vector((outer_x, y0, cup_top - 0.008))
+        low = Vector((outer_x + side_sign * 0.002, y0, min(cup_top - 0.040, cup_mid_z + 0.02)))
+        pts = []
+        for k in range(8):
+            u = k / 7.0
+            if u < 0.45:
+                p = low.lerp(mid, u / 0.45)
+            else:
+                p = mid.lerp(top, (u - 0.45) / 0.55)
+            pts.append(p)
+        return pts
+
+    left_yoke = yoke_points(x_left, -1)
+    right_yoke = yoke_points(x_right, +1)
+    # Inclusive yokes; drop duplicate join verts so tube has no zero-length segments.
+    full = left_yoke[:-1] + path + list(reversed(right_yoke))[1:]
+
+    mesh = _tube_along_path(full, tube_r, n_side=16, oval=(1.05, 0.88))
+    if mesh is None:
+        print("HEADBAND_PROXY mesh fail", flush=True)
+        return None
+
+    band = bpy.data.objects.new("PloopyHeadbandProxy", mesh)
+    bpy.context.collection.objects.link(band)
+
+    mat = _make_principled("Prod_HeadbandProxy", (0.09, 0.095, 0.11), 0.90, 0.0, 0.07)
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf and "Sheen Weight" in bsdf.inputs:
+        bsdf.inputs["Sheen Weight"].default_value = 0.40
+        if "Sheen Roughness" in bsdf.inputs:
+            bsdf.inputs["Sheen Roughness"].default_value = 0.55
+    band.data.materials.append(mat)
+    crown_z = z_center + b
+    print(
+        f"HEADBAND_PROXY ok span={x_left:.3f}->{x_right:.3f} "
+        f"crown_z={crown_z:.3f} tube_r={tube_r:.4f} pts={len(full)}",
+        flush=True,
+    )
+    return band
 
 
 def _make_principled(name, color, roughness, metallic=0.0, specular=0.45):
@@ -635,7 +811,7 @@ def assign_product_materials(kind="auto"):
         mat_pad = _make_principled("Prod_PadFoam", (0.05, 0.05, 0.055), 0.92, 0.0, 0.06)
         mat_mesh = _make_principled("Prod_DriverMesh", (0.08, 0.085, 0.09), 0.36, 0.50, 0.30)
         mat_metal = _make_principled("Prod_MetalAccent", (0.40, 0.41, 0.44), 0.34, 0.70, 0.38)
-        mat_band = _make_principled("Prod_Headband", (0.12, 0.13, 0.145), 0.72, 0.0, 0.16)
+        mat_band = _make_principled("Prod_Headband", (0.09, 0.095, 0.11), 0.88, 0.0, 0.08)
         for obj in meshes:
             key = _mesh_key(obj)
             if key in ("HPH-013", "HPH-018"):
@@ -647,20 +823,31 @@ def assign_product_materials(kind="auto"):
                 mat = mat_metal
             elif key == "HPH-035":
                 mat = mat_band
+            elif obj.name.startswith("PloopyHeadbandProxy"):
+                mat = mat_band
             else:
                 mat = mat_shell
             obj.data.materials.clear()
             obj.data.materials.append(mat)
             if obj.material_slots:
                 obj.material_slots[0].material = mat
+        # Ensure proxy keeps fabric sheen band even if created before mats
+        for obj in meshes:
+            if obj.name.startswith("PloopyHeadbandProxy"):
+                bsdf = mat_band.node_tree.nodes.get("Principled BSDF")
+                if bsdf and "Sheen Weight" in bsdf.inputs:
+                    bsdf.inputs["Sheen Weight"].default_value = 0.40
+                obj.data.materials.clear()
+                obj.data.materials.append(mat_band)
         print("PRODUCT_MATS ploopy shell/mesh/metal/band", flush=True)
         return "ploopy"
 
     if kind == "watchy":
         # Cool charcoal case vs warm insert vs near-black buttons (chroma keeps parts readable).
-        mat_case = _make_principled("Prod_CasePlastic", (0.11, 0.125, 0.15), 0.78, 0.0, 0.12)
-        mat_insert = _make_principled("Prod_InsertScreen", (0.34, 0.32, 0.27), 0.85, 0.0, 0.08)
-        mat_btn = _make_principled("Prod_Button", (0.03, 0.03, 0.035), 0.58, 0.10, 0.18)
+        # Stronger case / insert / button separation (readable at phone width).
+        mat_case = _make_principled("Prod_CasePlastic", (0.085, 0.095, 0.120), 0.80, 0.0, 0.10)
+        mat_insert = _make_principled("Prod_InsertScreen", (0.46, 0.42, 0.32), 0.72, 0.0, 0.10)
+        mat_btn = _make_principled("Prod_Button", (0.018, 0.018, 0.022), 0.42, 0.18, 0.24)
         for obj in meshes:
             key = _mesh_key(obj).lower()
             nl = obj.name.lower()
@@ -739,6 +926,10 @@ def main():
 
     # Hide print-support / jig / ghost meshes before bbox + materials.
     hide_print_supports(extra_names=opts.get("hide_names"), enabled=bool(opts.get("hide_supports", False)))
+
+    # Quiet fabric headband proxy for Ploopy (HPH-035 stays hidden — no serpentine).
+    if bool(opts.get("headband_proxy", True)):
+        add_ploopy_headband_proxy(enabled=True)
 
     use_clay = bool(opts["clay"]) and not bool(opts.get("no_clay"))
     use_product = bool(opts.get("product_mats", False)) and not use_clay

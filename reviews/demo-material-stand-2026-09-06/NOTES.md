@@ -35,3 +35,7 @@ Featured live `07`/`08` **not** swapped until Steve/Rams gate. New soft-grey fra
 - Without HPH-035 the CAD has no fabric headband — earcups+sliders only; 07 may show assembly gaps.
 - Earcup embossed `left` foot tabs are part of earcup mesh (not separate hide targets).
 - Optional follow-up: quiet studio stand prop or fabric-band proxy for wearable silhouette.
+
+## Follow-up
+
+Headband proxy pass: `reviews/demo-headband-proxy-2026-09-06/` (restores wearable silhouette; live stills still held).

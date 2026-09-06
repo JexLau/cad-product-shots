@@ -8,6 +8,7 @@ TARGET="${1:?target watchy|ploopy|case01}"
 ENGINE="${ENGINE:-EEVEE}"
 SAMPLES="${SAMPLES:-32}"
 RES="${RES:-1080}"
+# Soft-grey live demos: product materials + hide print supports (not white clay).
 case "$TARGET" in
   watchy)
     exec "$BLENDER" --background --factory-startup --python "$SCRIPT" -- \
@@ -15,7 +16,8 @@ case "$TARGET" in
       --out /workspace/cad-product-shots/media/demo-watchy/stills \
       --repo-stills /workspace/cad-product-shots/media/demo-watchy/stills \
       --shots simple --engine "$ENGINE" --samples "$SAMPLES" --res "$RES" \
-      --radius-scale 2.6 --bg 0.22 --exposure -0.70 --light-scale 0.40 --force
+      --preset softgrey --radius-scale 2.6 --bg 0.22 --exposure -0.70 --light-scale 0.40 \
+      --no-clay --product-mats --hide-supports --force
     ;;
   ploopy)
     exec "$BLENDER" --background --factory-startup --python "$SCRIPT" -- \
@@ -23,7 +25,8 @@ case "$TARGET" in
       --out /workspace/cad-product-shots/media/demo-ploopy/stills \
       --repo-stills /workspace/cad-product-shots/media/demo-ploopy/stills \
       --shots simple --engine "$ENGINE" --samples "$SAMPLES" --res "$RES" \
-      --radius-scale 2.4 --bg 0.20 --exposure -0.75 --light-scale 0.38 --clay --force
+      --preset softgrey --radius-scale 2.4 --bg 0.20 --exposure -0.75 --light-scale 0.38 \
+      --no-clay --product-mats --hide-supports --force
     ;;
   case01)
     exec "$BLENDER" --background --factory-startup --python "$SCRIPT" -- \

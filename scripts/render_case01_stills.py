@@ -71,6 +71,9 @@ def parse_args():
         "preset": "softgrey",
         "lighting": "softgrey",
         "world_strength": 0.65,
+        "hide_supports": False,
+        "product_mats": False,
+        "hide_names": None,
     }
     explicit = set()
     i = 0
@@ -139,6 +142,21 @@ def parse_args():
             out["no_clay"] = True
             out["clay"] = False
             explicit.add("clay")
+        elif a == "--hide-supports":
+            out["hide_supports"] = True
+            explicit.add("hide_supports")
+        elif a == "--no-hide-supports":
+            out["hide_supports"] = False
+            explicit.add("hide_supports")
+        elif a == "--product-mats":
+            out["product_mats"] = True
+            explicit.add("product_mats")
+        elif a == "--no-product-mats":
+            out["product_mats"] = False
+            explicit.add("product_mats")
+        elif a == "--hide-names" and i + 1 < len(args):
+            i += 1
+            out["hide_names"] = {x.strip() for x in args[i].split(",") if x.strip()}
         elif a == "--force":
             out["force"] = True
         elif a == "--no-copy-repo":
@@ -523,6 +541,154 @@ def satinize_overmetallic(max_metallic=0.12):
             if "Specular IOR Level" in bsdf.inputs:
                 bsdf.inputs["Specular IOR Level"].default_value = 0.38
 
+
+# --- Demo assembly cleanup + product materials (Ploopy / Watchy) ---
+# Documented hide list (prefer hide_render; do not delete CAD source):
+# Ploopy mesh data names from STEP→GLB:
+#   HPH-039 (obj NAUO6): lattice headphone stand + base — print-support aesthetic
+#   HPH-038 (obj NAUO11): floating duplicate serpentine flexbars — ghost/explode
+#   HPH-036 (obj NAUO9): tripod/jig lattice — assembly jig, not wearable product
+# Kept as product: HPH-013/018 earcups, HPH-032 driver rings, HPH-033/037 sliders.
+# HPH-035 bare serpentine flexbars hidden for Rams DoD (fabric-covered band not in CAD;
+#   otherwise reads as print-support serpentine in featured stills).
+PLOOPY_HIDE_MESH_PREFIXES = ("HPH-039", "HPH-038", "HPH-036", "HPH-035")
+SUPPORT_NAME_HINTS = (
+    "support", "scaffold", "lattice", "stand", "jig", "brim", "raft", "helper",
+)
+
+
+def _mesh_key(obj) -> str:
+    data = getattr(obj, "data", None)
+    return (getattr(data, "name", "") or obj.name or "").split(".")[0]
+
+
+def hide_print_supports(extra_names=None, enabled=True):
+    """Hide print-support / jig / ghost meshes from render (source CAD untouched)."""
+    if not enabled:
+        print("HIDE_SUPPORTS off", flush=True)
+        return []
+    hidden = []
+    extras = {n.lower() for n in (extra_names or set())}
+    for obj in bpy.data.objects:
+        if obj.type != "MESH" or obj.name == "CycloramaFloor":
+            continue
+        key = _mesh_key(obj)
+        name_l = (obj.name or "").lower()
+        data_l = (getattr(obj.data, "name", "") or "").lower()
+        reason = None
+        if any(key == p or key.startswith(p + ".") or data_l.startswith(p.lower()) for p in PLOOPY_HIDE_MESH_PREFIXES):
+            reason = f"ploopy-support:{key}"
+        elif any(h in name_l or h in data_l for h in SUPPORT_NAME_HINTS):
+            reason = f"name-hint:{key}"
+        elif obj.name in (extra_names or set()) or name_l in extras or key.lower() in extras:
+            reason = f"cli:{obj.name}"
+        if reason:
+            obj.hide_render = True
+            obj.hide_viewport = True
+            hidden.append(f"{obj.name}/{key} ({reason})")
+    print(f"HIDE_SUPPORTS {len(hidden)}: {hidden}", flush=True)
+    return hidden
+
+
+def _make_principled(name, color, roughness, metallic=0.0, specular=0.45):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (*color, 1.0)
+        bsdf.inputs["Roughness"].default_value = float(roughness)
+        if "Metallic" in bsdf.inputs:
+            bsdf.inputs["Metallic"].default_value = float(metallic)
+        if "Specular IOR Level" in bsdf.inputs:
+            bsdf.inputs["Specular IOR Level"].default_value = float(specular)
+        # Blender 5 / AgX: kill leftover emission and coat so CAD flats do not blow white.
+        if "Emission Strength" in bsdf.inputs:
+            bsdf.inputs["Emission Strength"].default_value = 0.0
+        if "Coat Weight" in bsdf.inputs:
+            bsdf.inputs["Coat Weight"].default_value = 0.0
+        if "Sheen Weight" in bsdf.inputs:
+            bsdf.inputs["Sheen Weight"].default_value = 0.0
+    return mat
+
+
+def assign_product_materials(kind="auto"):
+    """Assign readable industrial plastics (not white/lavender clay)."""
+    meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.name != "CycloramaFloor" and not o.hide_render]
+    if not meshes:
+        return "none"
+    keys = {_mesh_key(o) for o in meshes}
+    names = {o.name.lower() for o in meshes}
+    data_names = {(getattr(o.data, "name", "") or "").lower() for o in meshes}
+
+    # Detect pack
+    if kind == "auto":
+        if any(k.startswith("HPH-") for k in keys):
+            kind = "ploopy"
+        elif any("button" in n or n.startswith("top") or n.startswith("bottom") for n in names | data_names):
+            kind = "watchy"
+        else:
+            kind = "generic"
+
+    if kind == "ploopy":
+        # Tinted industrial plastics (neutral grey chalks white under softgrey+AgX).
+        mat_shell = _make_principled("Prod_PlasticShell", (0.16, 0.17, 0.19), 0.68, 0.0, 0.18)
+        mat_pad = _make_principled("Prod_PadFoam", (0.05, 0.05, 0.055), 0.92, 0.0, 0.06)
+        mat_mesh = _make_principled("Prod_DriverMesh", (0.08, 0.085, 0.09), 0.36, 0.50, 0.30)
+        mat_metal = _make_principled("Prod_MetalAccent", (0.40, 0.41, 0.44), 0.34, 0.70, 0.38)
+        mat_band = _make_principled("Prod_Headband", (0.12, 0.13, 0.145), 0.72, 0.0, 0.16)
+        for obj in meshes:
+            key = _mesh_key(obj)
+            if key in ("HPH-013", "HPH-018"):
+                # Earcup assemblies — shell plastic (pad foam not a separate mesh in this GLB)
+                mat = mat_shell
+            elif key == "HPH-032":
+                mat = mat_mesh
+            elif key in ("HPH-033", "HPH-037"):
+                mat = mat_metal
+            elif key == "HPH-035":
+                mat = mat_band
+            else:
+                mat = mat_shell
+            obj.data.materials.clear()
+            obj.data.materials.append(mat)
+            if obj.material_slots:
+                obj.material_slots[0].material = mat
+        print("PRODUCT_MATS ploopy shell/mesh/metal/band", flush=True)
+        return "ploopy"
+
+    if kind == "watchy":
+        # Cool charcoal case vs warm insert vs near-black buttons (chroma keeps parts readable).
+        mat_case = _make_principled("Prod_CasePlastic", (0.11, 0.125, 0.15), 0.78, 0.0, 0.12)
+        mat_insert = _make_principled("Prod_InsertScreen", (0.34, 0.32, 0.27), 0.85, 0.0, 0.08)
+        mat_btn = _make_principled("Prod_Button", (0.03, 0.03, 0.035), 0.58, 0.10, 0.18)
+        for obj in meshes:
+            key = _mesh_key(obj).lower()
+            nl = obj.name.lower()
+            if "button" in key or "button" in nl:
+                mat = mat_btn
+            elif key.startswith("top") or nl.startswith("top"):
+                # top half reads as insert / screen-adjacent face
+                mat = mat_insert
+            elif key.startswith("bottom") or nl.startswith("bottom"):
+                mat = mat_case
+            else:
+                mat = mat_case
+            obj.data.materials.clear()
+            obj.data.materials.append(mat)
+            if obj.material_slots:
+                obj.material_slots[0].material = mat
+        print("PRODUCT_MATS watchy case/insert/button", flush=True)
+        return "watchy"
+
+    # generic: quiet mid-grey plastic, not chalk white
+    mat = _make_principled("Prod_Neutral", (0.36, 0.37, 0.39), 0.50, 0.03, 0.40)
+    for obj in meshes:
+        obj.data.materials.clear()
+        obj.data.materials.append(mat)
+    print("PRODUCT_MATS generic", flush=True)
+    return "generic"
+
+
 def shot_list(mode):
     if mode == "simple":
         return [
@@ -571,9 +737,16 @@ def main():
     else:
         set_frame(1)
 
+    # Hide print-support / jig / ghost meshes before bbox + materials.
+    hide_print_supports(extra_names=opts.get("hide_names"), enabled=bool(opts.get("hide_supports", False)))
+
     use_clay = bool(opts["clay"]) and not bool(opts.get("no_clay"))
+    use_product = bool(opts.get("product_mats", False)) and not use_clay
     if use_clay:
         apply_simple_material_if_needed(force=True)
+    elif use_product:
+        # Prefer readable product plastics over white clay / lavender CAD placeholders.
+        assign_product_materials(kind="auto")
     elif kind in ("stl", "step", "obj"):
         # Assign NeutralPlastic only when meshes have no materials (never force-clay on dark).
         apply_simple_material_if_needed(force=False)
@@ -593,6 +766,16 @@ def main():
     print(f"CENTER {tuple(round(v, 4) for v in center)} SIZE {tuple(round(v, 4) for v in size)} R={radius:.3f}", flush=True)
 
     lighting = opts.get("lighting") or "softgrey"
+    # Product-mat demos: pull world/lights down so tinted plastics stay readable (not chalk).
+    if use_product and lighting != "dark":
+        opts["world_strength"] = min(float(opts.get("world_strength", 0.65)), 0.42)
+        opts["light_scale"] = min(float(opts.get("light_scale", 0.40)), 0.26)
+        opts["exposure"] = min(float(opts.get("exposure", -0.70)), -0.55)
+        print(
+            f"PRODUCT_LIGHTING world_strength={opts['world_strength']} "
+            f"light_scale={opts['light_scale']} exposure={opts['exposure']}",
+            flush=True,
+        )
     world_name = "StudioDark" if lighting == "dark" else "StudioSoftGrey"
     setup_world_studio(scene, opts["bg"], strength=opts.get("world_strength", 0.65), name=world_name)
     if lighting == "dark":

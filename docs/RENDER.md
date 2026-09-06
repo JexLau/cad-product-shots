@@ -30,7 +30,9 @@ Soft-grey controlled studio — **not** paper-white cyclorama:
 - Floor darker than world for edge separation
 - Size-scaled area lights with high key:fill ratio (`--light-scale`)
 - AgX High Contrast + `--exposure` pull-down to avoid blown highlights
-- Clay / dampened GLB materials for readable form
+- Demo packs (Ploopy / Watchy): **product materials** (shell / mesh / pad-or-insert / accents) — not white clay
+- Print-support / jig / ghost meshes hidden via `--hide-supports` (see HPH-039/038/036); CAD source untouched
+- Case#1 may still use dampened GLB materials for readable form
 
 
 ## Studio-dark preset (DJI-track sample)

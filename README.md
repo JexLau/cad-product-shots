@@ -48,7 +48,7 @@ Primary CTAs (hero, sticky header, footer) open `mailto:jexlau.dev@gmail.com?sub
 
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
 
-See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Do not add stock or fake 3D.
+See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. The live Demo · open CAD showcase is open headphones; the e-ink watch case pack is under construction and is not shown as a qualified demo. Do not add stock or fake 3D.
 
 ## Case #1 multi-angle stills
 

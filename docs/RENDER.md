@@ -52,6 +52,8 @@ mkdir -p "$OUT"
 cp "$OUT/08-three-quarter.jpg" media/demo-watchy/stills/_preview-dark-08.jpg
 ```
 
+Same knobs for Ploopy (`media/demo-ploopy/source/PloopyHeadphones-RevA.glb` → `media/demo-ploopy/stills/_preview-dark-08.jpg`).
+
 `--preset dark` (alias: `studio-dark`) sets roughly `--bg 0.03`, dialed-down rim/key/kicker
 (Rim energy ~28), weaker GLB dampen + satinize (not clay), exposure ~-0.65 / light-scale ~0.34 for dark bg,
 slightly higher `--radius-scale`, and a Cycles shadow-catcher floor so the slab does not blow out.

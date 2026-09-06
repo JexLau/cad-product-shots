@@ -70,9 +70,11 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 
 ## Demo · open CAD packs
 
-| Pack | Path | License | Hard line |
-| --- | --- | --- | --- |
-| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | No endorsement / fake brand / logo |
-| Open e-ink watch case | `media/demo-watchy/` | MIT | Not Apple Watch; not “Watchy” shelf name |
+| Pack | Path | License | Landing | Hard line |
+| --- | --- | --- | --- | --- |
+| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | **On the page** — live qualified demo | No endorsement / fake brand / logo |
+| Open e-ink watch case | `media/demo-watchy/` | MIT | **Held / 施工中** — stills not showcased (CAD does not read as a watch) | Not Apple Watch; not “Watchy” shelf name |
+
+Watchy source + LICENSE stay in `media/demo-watchy/` for a later rebuild. Do not wire those stills back onto the landing until the assembly is pass-quality.
 
 Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.

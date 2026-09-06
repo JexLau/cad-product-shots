@@ -665,10 +665,35 @@ def _tube_along_path(path, tube_r, n_side=14, oval=(1.08, 0.72)):
     return mesh
 
 
-def add_ploopy_headband_proxy(enabled=True):
-    """Quiet fabric/soft-plastic arc + side yokes bridging earcups.
+def _cup_outer_top_pad(obj, side_sign):
+    """Outer-third top pad on an earcup (solid shell, not ear cavity)."""
+    mw = obj.matrix_world
+    verts = [mw @ v.co for v in obj.data.vertices]
+    if not verts:
+        mins, maxs = _world_bbox(obj)
+        x = mins.x + 0.28 * (maxs.x - mins.x) if side_sign < 0 else maxs.x - 0.28 * (maxs.x - mins.x)
+        return Vector((x, mins.y + 0.25 * (maxs.y - mins.y), maxs.z))
+    xs = [v.x for v in verts]
+    x_lo, x_hi = min(xs), max(xs)
+    if side_sign < 0:
+        pool = [v for v in verts if v.x <= x_lo + 0.34 * (x_hi - x_lo)]
+    else:
+        pool = [v for v in verts if v.x >= x_hi - 0.34 * (x_hi - x_lo)]
+    z_hi = max(v.z for v in pool)
+    top = [v for v in pool if v.z >= z_hi - 0.010]
+    y_lo = min(v.y for v in top)
+    y_span = max(1e-9, max(v.y for v in top) - y_lo)
+    front = [v for v in top if v.y <= y_lo + 0.40 * y_span]
+    cluster = front if len(front) >= 6 else top
+    return sum(cluster, Vector((0.0, 0.0, 0.0))) / float(len(cluster))
 
-    HPH-035 serpentine stays hidden. Continuous wearable silhouette at 1m.
+
+def add_ploopy_headband_proxy(enabled=True):
+    """Quiet fabric C-band into both earcup outer-top pads + joint plugs.
+
+    Hides one-sided HPH-037/033. Measures outer-third top pads on HPH-013/018,
+    builds vertical yokes + crown, and adds small joint spheres so ends read as
+    joined (not floating) even when the tube centerline sits near hollow shell.
     """
     if not enabled:
         print("HEADBAND_PROXY off", flush=True)
@@ -684,71 +709,65 @@ def add_ploopy_headband_proxy(enabled=True):
         print("HEADBAND_PROXY skip (no earcups)", flush=True)
         return None
 
-    # Hide incomplete one-sided slider stubs so the quiet arc is the only bridge.
     for obj in list(bpy.data.objects):
         if obj.type != "MESH":
             continue
-        key = _mesh_key(obj)
-        if key in PLOOPY_HIDE_WITH_PROXY:
+        if _mesh_key(obj) in ("HPH-037", "HPH-033"):
             obj.hide_render = True
             obj.hide_viewport = True
 
+    left = _cup_outer_top_pad(cups["HPH-013"], -1)
+    right = _cup_outer_top_pad(cups["HPH-018"], +1)
     lm, lM = _world_bbox(cups["HPH-013"])
     rm, rM = _world_bbox(cups["HPH-018"])
-    y0 = 0.5 * (((lm.y + lM.y) * 0.5) + ((rm.y + rM.y) * 0.5)) + 0.004
-    cup_top = max(lM.z, rM.z)
-    cup_mid_z = 0.5 * (((lm.z + lM.z) * 0.5) + ((rm.z + rM.z) * 0.5))
-    # Outer faces of earcups — yoke lands here (wearable C-shape)
-    x_left = lm.x - 0.002
-    x_right = rM.x + 0.002
-    half = 0.5 * (x_right - x_left)
-    cx = 0.5 * (x_left + x_right)
+    cup_h = max(lM.z - lm.z, rM.z - rm.z)
 
-    # Ellipse center below cup tops so ends dive into cup sides; tall crown
-    z_center = cup_top - 0.028
-    b = max(0.118, half * 1.35)  # crown ~ cup_top + 0.09
-    a = half * 1.02
-    tube_r = max(0.0125, half * 0.110)
+    tube_r = max(0.0155, 0.5 * abs(right.x - left.x) * 0.140)
+    # Path on the measured pads; tiny camera bias only (too much Y float reads as a gap).
+    x_L = left.x - 0.15 * tube_r
+    x_R = right.x + 0.15 * tube_r
+    y_L = left.y - 0.15 * tube_r
+    y_R = right.y - 0.15 * tube_r
+    y0 = 0.5 * (y_L + y_R)
 
-    # Path: left yoke (up from cup) → crown arc → right yoke
-    # Use t from ~0.08*pi to ~0.92*pi would stay high; instead full pi with low center
-    n_arc = 48
-    path = []
-    for i in range(n_arc + 1):
-        t = math.pi * (1.0 - i / n_arc)  # pi -> 0 (left -> right)
-        x = cx + a * math.cos(t)
-        z = z_center + b * math.sin(t)
-        y = y0 + 0.018 * math.sin(t)
-        path.append(Vector((x, y, z)))
+    z_pad_L, z_pad_R = left.z, right.z
+    z_pad = 0.5 * (z_pad_L + z_pad_R)
+    # Path starts at dug-in plug centers.
+    z_bury = z_pad - 0.85 * (tube_r * 1.45)
+    z_rise = z_pad + 1.25 * tube_r
+    half = 0.5 * abs(x_R - x_L)
+    z_shoulder = z_pad + max(0.062, half * 0.70)
+    crown_z = z_pad + max(0.110, half * 1.25)
 
-    # Extra yoke stubs: continue down from arc ends toward cup outer mid-upper
-    def yoke_points(outer_x, side_sign):
-        # From cup outer up to matching arc end (inclusive).
-        top = path[0] if side_sign < 0 else path[-1]
-        mid = Vector((outer_x, y0, cup_top - 0.008))
-        low = Vector((outer_x + side_sign * 0.002, y0, min(cup_top - 0.040, cup_mid_z + 0.02)))
+    def yoke(x, y, n_vert=18, n_bend=11):
         pts = []
-        for k in range(8):
-            u = k / 7.0
-            if u < 0.45:
-                p = low.lerp(mid, u / 0.45)
-            else:
-                p = mid.lerp(top, (u - 0.45) / 0.55)
-            pts.append(p)
+        for i in range(n_vert):
+            u = i / (n_vert - 1)
+            u2 = u * u * (3.0 - 2.0 * u)
+            pts.append(Vector((x, y, z_bury + (z_rise - z_bury) * u2)))
+        start = pts[-1]
+        end = Vector((x + (0.0 - x) * 0.10, 0.40 * y0 + 0.60 * y, z_shoulder))
+        mid = Vector((0.70 * start.x + 0.30 * end.x, 0.5 * (start.y + end.y), 0.25 * start.z + 0.75 * end.z))
+        for i in range(1, n_bend):
+            u = i / (n_bend - 1)
+            pts.append((1 - u) ** 2 * start + 2 * (1 - u) * u * mid + u ** 2 * end)
         return pts
 
-    left_yoke = yoke_points(x_left, -1)
-    right_yoke = yoke_points(x_right, +1)
-    # Inclusive yokes; drop duplicate join verts so tube has no zero-length segments.
-    full = left_yoke[:-1] + path + list(reversed(right_yoke))[1:]
+    left_yoke = yoke(x_L, y_L)
+    right_yoke = yoke(x_R, y_R)
+    pL, pR = left_yoke[-1], right_yoke[-1]
+    a = 0.5 * (pR.x - pL.x)
+    cx = 0.5 * (pL.x + pR.x)
+    z0 = 0.5 * (pL.z + pR.z)
+    b = max(0.001, crown_z - z0)
+    arc = [Vector((cx + a * math.cos(t), y0 + 0.012 * math.sin(t), z0 + b * math.sin(t)))
+           for t in (math.pi * (1.0 - i / 39.0) for i in range(40))]
+    full = left_yoke[:-1] + arc + list(reversed(right_yoke))[1:]
 
-    mesh = _tube_along_path(full, tube_r, n_side=16, oval=(1.05, 0.88))
+    mesh = _tube_along_path(full, tube_r, n_side=18, oval=(1.10, 0.82))
     if mesh is None:
         print("HEADBAND_PROXY mesh fail", flush=True)
         return None
-
-    band = bpy.data.objects.new("PloopyHeadbandProxy", mesh)
-    bpy.context.collection.objects.link(band)
 
     mat = _make_principled("Prod_HeadbandProxy", (0.09, 0.095, 0.11), 0.90, 0.0, 0.07)
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
@@ -756,14 +775,34 @@ def add_ploopy_headband_proxy(enabled=True):
         bsdf.inputs["Sheen Weight"].default_value = 0.40
         if "Sheen Roughness" in bsdf.inputs:
             bsdf.inputs["Sheen Roughness"].default_value = 0.55
+
+    band = bpy.data.objects.new("PloopyHeadbandProxy", mesh)
+    bpy.context.collection.objects.link(band)
     band.data.materials.append(mat)
-    crown_z = z_center + b
+
+    # Joint plugs: fill the cup-to-yoke interface so ends never read as floating caps.
+    plug_r = tube_r * 1.45
+    # Dig plugs deep into the pad so AO does not read as an air gap.
+    for i, (x, y, z) in enumerate((
+        (left.x, left.y, left.z - 0.85 * plug_r),
+        (right.x, right.y, right.z - 0.85 * plug_r),
+    )):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=plug_r, location=(x, y, z), segments=20, ring_count=12)
+        plug = bpy.context.active_object
+        plug.name = f"PloopyHeadbandJoint{i}"
+        plug.data.materials.append(mat)
+        for poly in plug.data.polygons:
+            poly.use_smooth = True
+
     print(
-        f"HEADBAND_PROXY ok span={x_left:.3f}->{x_right:.3f} "
-        f"crown_z={crown_z:.3f} tube_r={tube_r:.4f} pts={len(full)}",
+        f"HEADBAND_PROXY ok pads L=({left.x:.3f},{left.y:.3f},{left.z:.3f}) "
+        f"R=({right.x:.3f},{right.y:.3f},{right.z:.3f}) "
+        f"yoke_x=({x_L:.3f},{x_R:.3f}) bury_z={z_bury:.3f} rise_z={z_rise:.3f} "
+        f"crown_z={crown_z:.3f} tube_r={tube_r:.4f} plug_r={plug_r:.4f} pts={len(full)}",
         flush=True,
     )
     return band
+
 
 
 def _make_principled(name, color, roughness, metallic=0.0, specular=0.45):

@@ -805,7 +805,7 @@ def add_ploopy_headband_proxy(enabled=True):
 
 
 
-def _make_principled(name, color, roughness, metallic=0.0, specular=0.45):
+def _make_principled(name, color, roughness, metallic=0.0, specular=0.45, sheen=0.0, coat=0.0):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
@@ -816,18 +816,198 @@ def _make_principled(name, color, roughness, metallic=0.0, specular=0.45):
             bsdf.inputs["Metallic"].default_value = float(metallic)
         if "Specular IOR Level" in bsdf.inputs:
             bsdf.inputs["Specular IOR Level"].default_value = float(specular)
-        # Blender 5 / AgX: kill leftover emission and coat so CAD flats do not blow white.
+        # Blender 5 / AgX: kill leftover emission so CAD flats do not blow white.
         if "Emission Strength" in bsdf.inputs:
             bsdf.inputs["Emission Strength"].default_value = 0.0
         if "Coat Weight" in bsdf.inputs:
-            bsdf.inputs["Coat Weight"].default_value = 0.0
+            bsdf.inputs["Coat Weight"].default_value = float(coat)
         if "Sheen Weight" in bsdf.inputs:
-            bsdf.inputs["Sheen Weight"].default_value = 0.0
+            bsdf.inputs["Sheen Weight"].default_value = float(sheen)
+        if sheen > 0 and "Sheen Roughness" in bsdf.inputs:
+            bsdf.inputs["Sheen Roughness"].default_value = 0.45
     return mat
 
 
+def _add_micro_bump(mat, strength=0.045, scale=48.0):
+    """Subtle Noise→Bump so soft pads read cushion, not hard CAD flats."""
+    if not mat or not mat.use_nodes:
+        return
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    if not bsdf:
+        return
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = float(scale)
+    noise.inputs["Detail"].default_value = 8.0
+    noise.inputs["Roughness"].default_value = 0.55
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = float(strength)
+    bump.inputs["Distance"].default_value = 0.08
+    nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+
+
+def _assign_single(obj, mat):
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+    if obj.material_slots:
+        obj.material_slots[0].material = mat
+
+
+def _earcup_shell_pad_material(name="Prod_EarcupShellPad"):
+    """Satin shell mixed → soft warm pad by object-space medial ring (smooth falloff).
+
+    Both L/R cups: local −X is medial (toward head); disc lies in local YZ.
+    GLB has no UVs — procedural Mix avoids jagged per-face tessellation.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    out.location = (1100, 0)
+
+    shell = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    shell.location = (700, 220)
+    shell.inputs["Base Color"].default_value = (0.18, 0.19, 0.22, 1.0)
+    shell.inputs["Roughness"].default_value = 0.34
+    if "Specular IOR Level" in shell.inputs:
+        shell.inputs["Specular IOR Level"].default_value = 0.48
+    if "Coat Weight" in shell.inputs:
+        shell.inputs["Coat Weight"].default_value = 0.12
+    if "Metallic" in shell.inputs:
+        shell.inputs["Metallic"].default_value = 0.0
+    if "Emission Strength" in shell.inputs:
+        shell.inputs["Emission Strength"].default_value = 0.0
+
+    pad = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    pad.location = (700, -260)
+    pad.inputs["Base Color"].default_value = (0.040, 0.028, 0.022, 1.0)
+    pad.inputs["Roughness"].default_value = 0.95
+    if "Specular IOR Level" in pad.inputs:
+        pad.inputs["Specular IOR Level"].default_value = 0.03
+    if "Sheen Weight" in pad.inputs:
+        pad.inputs["Sheen Weight"].default_value = 0.70
+        if "Sheen Roughness" in pad.inputs:
+            pad.inputs["Sheen Roughness"].default_value = 0.48
+    if "Coat Weight" in pad.inputs:
+        pad.inputs["Coat Weight"].default_value = 0.0
+    if "Emission Strength" in pad.inputs:
+        pad.inputs["Emission Strength"].default_value = 0.0
+
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.location = (420, -460)
+    noise.inputs["Scale"].default_value = 36.0
+    noise.inputs["Detail"].default_value = 12.0
+    noise.inputs["Roughness"].default_value = 0.6
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.location = (560, -420)
+    bump.inputs["Strength"].default_value = 0.07
+    bump.inputs["Distance"].default_value = 0.06
+    nt.links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], pad.inputs["Normal"])
+
+    texcoord = nt.nodes.new("ShaderNodeTexCoord")
+    texcoord.location = (-800, 0)
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    sep.location = (-600, 0)
+    nt.links.new(texcoord.outputs["Object"], sep.inputs["Vector"])
+
+    # Medial = low local X (both cups). Soft: 1 at x<=-0.016, 0 at x>=0.004
+    map_med = nt.nodes.new("ShaderNodeMapRange")
+    map_med.location = (-360, 160)
+    map_med.clamp = True
+    map_med.inputs["From Min"].default_value = -0.018
+    map_med.inputs["From Max"].default_value = 0.014
+    map_med.inputs["To Min"].default_value = 1.0
+    map_med.inputs["To Max"].default_value = 0.0
+    nt.links.new(sep.outputs["X"], map_med.inputs["Value"])
+
+    # r = sqrt(y^2+z^2) in object space (cup disc)
+    my = nt.nodes.new("ShaderNodeMath")
+    my.operation = "MULTIPLY"
+    my.location = (-360, -40)
+    nt.links.new(sep.outputs["Y"], my.inputs[0])
+    nt.links.new(sep.outputs["Y"], my.inputs[1])
+    mz = nt.nodes.new("ShaderNodeMath")
+    mz.operation = "MULTIPLY"
+    mz.location = (-360, -160)
+    nt.links.new(sep.outputs["Z"], mz.inputs[0])
+    nt.links.new(sep.outputs["Z"], mz.inputs[1])
+    add = nt.nodes.new("ShaderNodeMath")
+    add.operation = "ADD"
+    add.location = (-180, -90)
+    nt.links.new(my.outputs["Value"], add.inputs[0])
+    nt.links.new(mz.outputs["Value"], add.inputs[1])
+    sqr = nt.nodes.new("ShaderNodeMath")
+    sqr.operation = "SQRT"
+    sqr.location = (0, -90)
+    nt.links.new(add.outputs["Value"], sqr.inputs[0])
+
+    # Cushion torus band ~28–55mm from cup axis
+    rin = nt.nodes.new("ShaderNodeMapRange")
+    rin.location = (200, -20)
+    rin.clamp = True
+    rin.inputs["From Min"].default_value = 0.020
+    rin.inputs["From Max"].default_value = 0.028
+    rin.inputs["To Min"].default_value = 0.0
+    rin.inputs["To Max"].default_value = 1.0
+    nt.links.new(sqr.outputs["Value"], rin.inputs["Value"])
+    rout = nt.nodes.new("ShaderNodeMapRange")
+    rout.location = (200, -200)
+    rout.clamp = True
+    rout.inputs["From Min"].default_value = 0.052
+    rout.inputs["From Max"].default_value = 0.066
+    rout.inputs["To Min"].default_value = 1.0
+    rout.inputs["To Max"].default_value = 0.0
+    nt.links.new(sqr.outputs["Value"], rout.inputs["Value"])
+    ring = nt.nodes.new("ShaderNodeMath")
+    ring.operation = "MULTIPLY"
+    ring.location = (420, -90)
+    nt.links.new(rin.outputs["Result"], ring.inputs[0])
+    nt.links.new(rout.outputs["Result"], ring.inputs[1])
+
+    fac_ring = nt.nodes.new("ShaderNodeMath")
+    fac_ring.operation = "MULTIPLY"
+    fac_ring.location = (560, 80)
+    nt.links.new(map_med.outputs["Result"], fac_ring.inputs[0])
+    nt.links.new(ring.outputs["Value"], fac_ring.inputs[1])
+
+    # Soft fill: medial half of cup disc (cushion walls) even outside strict torus band.
+    med_half = nt.nodes.new("ShaderNodeMath")
+    med_half.operation = "MULTIPLY"
+    med_half.location = (560, -40)
+    # reuse map_med; require r > ~0.022 so cup axis cavity stays shell/mesh-adjacent
+    r_gate = nt.nodes.new("ShaderNodeMapRange")
+    r_gate.location = (380, -40)
+    r_gate.clamp = True
+    r_gate.inputs["From Min"].default_value = 0.018
+    r_gate.inputs["From Max"].default_value = 0.026
+    r_gate.inputs["To Min"].default_value = 0.0
+    r_gate.inputs["To Max"].default_value = 0.75
+    nt.links.new(sqr.outputs["Value"], r_gate.inputs["Value"])
+    nt.links.new(map_med.outputs["Result"], med_half.inputs[0])
+    nt.links.new(r_gate.outputs["Result"], med_half.inputs[1])
+
+    fac = nt.nodes.new("ShaderNodeMath")
+    fac.operation = "MAXIMUM"
+    fac.location = (720, 20)
+    nt.links.new(fac_ring.outputs["Value"], fac.inputs[0])
+    nt.links.new(med_half.outputs["Value"], fac.inputs[1])
+
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    mix.location = (900, 0)
+    nt.links.new(fac.outputs["Value"], mix.inputs["Fac"])
+    nt.links.new(shell.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(pad.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    return mat
+
+
+
 def assign_product_materials(kind="auto"):
-    """Assign readable industrial plastics (not white/lavender clay)."""
+    """Assignable product plastics — not white/lavender clay (Rams surface DoD)."""
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.name != "CycloramaFloor" and not o.hide_render]
     if not meshes:
         return "none"
@@ -835,7 +1015,6 @@ def assign_product_materials(kind="auto"):
     names = {o.name.lower() for o in meshes}
     data_names = {(getattr(o.data, "name", "") or "").lower() for o in meshes}
 
-    # Detect pack
     if kind == "auto":
         if any(k.startswith("HPH-") for k in keys):
             kind = "ploopy"
@@ -845,74 +1024,70 @@ def assign_product_materials(kind="auto"):
             kind = "generic"
 
     if kind == "ploopy":
-        # Tinted industrial plastics (neutral grey chalks white under softgrey+AgX).
-        mat_shell = _make_principled("Prod_PlasticShell", (0.16, 0.17, 0.19), 0.68, 0.0, 0.18)
-        mat_pad = _make_principled("Prod_PadFoam", (0.05, 0.05, 0.055), 0.92, 0.0, 0.06)
-        mat_mesh = _make_principled("Prod_DriverMesh", (0.08, 0.085, 0.09), 0.36, 0.50, 0.30)
-        mat_metal = _make_principled("Prod_MetalAccent", (0.40, 0.41, 0.44), 0.34, 0.70, 0.38)
-        mat_band = _make_principled("Prod_Headband", (0.09, 0.095, 0.11), 0.88, 0.0, 0.08)
+        mat_earcup = _earcup_shell_pad_material()
+        mat_mesh = _make_principled(
+            "Prod_DriverMesh", (0.035, 0.038, 0.045), 0.26, 0.68, 0.38, sheen=0.0, coat=0.14
+        )
+        mat_metal = _make_principled(
+            "Prod_MetalAccent", (0.38, 0.39, 0.42), 0.28, 0.75, 0.42, sheen=0.0, coat=0.12
+        )
+        # Headband fabric: clearly darker than shell so crown reads as another material.
+        mat_band = _make_principled(
+            "Prod_Headband", (0.022, 0.024, 0.030), 0.93, 0.0, 0.04, sheen=0.60, coat=0.0
+        )
+        _add_micro_bump(mat_band, strength=0.04, scale=26.0)
+        # Fallback satin shell for any non-cup leftovers
+        mat_shell = _make_principled(
+            "Prod_PlasticShell", (0.22, 0.23, 0.26), 0.34, 0.0, 0.48, sheen=0.0, coat=0.12
+        )
+
         for obj in meshes:
             key = _mesh_key(obj)
             if key in ("HPH-013", "HPH-018"):
-                # Earcup assemblies — shell plastic (pad foam not a separate mesh in this GLB)
-                mat = mat_shell
+                _assign_single(obj, mat_earcup)
             elif key == "HPH-032":
-                mat = mat_mesh
+                _assign_single(obj, mat_mesh)
             elif key in ("HPH-033", "HPH-037"):
-                mat = mat_metal
-            elif key == "HPH-035":
-                mat = mat_band
-            elif obj.name.startswith("PloopyHeadbandProxy"):
-                mat = mat_band
+                _assign_single(obj, mat_metal)
+            elif key == "HPH-035" or obj.name.startswith("PloopyHeadband"):
+                _assign_single(obj, mat_band)
             else:
-                mat = mat_shell
-            obj.data.materials.clear()
-            obj.data.materials.append(mat)
-            if obj.material_slots:
-                obj.material_slots[0].material = mat
-        # Ensure proxy keeps fabric sheen band even if created before mats
-        for obj in meshes:
-            if obj.name.startswith("PloopyHeadbandProxy"):
-                bsdf = mat_band.node_tree.nodes.get("Principled BSDF")
-                if bsdf and "Sheen Weight" in bsdf.inputs:
-                    bsdf.inputs["Sheen Weight"].default_value = 0.40
-                obj.data.materials.clear()
-                obj.data.materials.append(mat_band)
-        print("PRODUCT_MATS ploopy shell/mesh/metal/band", flush=True)
+                _assign_single(obj, mat_shell)
+        print("PRODUCT_MATS ploopy earcup(mix pad/shell)/mesh/band", flush=True)
         return "ploopy"
 
     if kind == "watchy":
-        # Cool charcoal case vs warm insert vs near-black buttons (chroma keeps parts readable).
-        # Stronger case / insert / button separation (readable at phone width).
-        mat_case = _make_principled("Prod_CasePlastic", (0.085, 0.095, 0.120), 0.80, 0.0, 0.10)
-        mat_insert = _make_principled("Prod_InsertScreen", (0.46, 0.42, 0.32), 0.72, 0.0, 0.10)
-        mat_btn = _make_principled("Prod_Button", (0.018, 0.018, 0.022), 0.42, 0.18, 0.24)
+        # Stronger separation — avoid chalk: darker case, muted warm insert, black buttons.
+        mat_case = _make_principled(
+            "Prod_CasePlastic", (0.028, 0.034, 0.048), 0.36, 0.0, 0.40, sheen=0.0, coat=0.18
+        )
+        mat_insert = _make_principled(
+            "Prod_InsertScreen", (0.12, 0.095, 0.070), 0.50, 0.0, 0.20, sheen=0.16, coat=0.0
+        )
+        mat_btn = _make_principled(
+            "Prod_Button", (0.008, 0.008, 0.010), 0.26, 0.45, 0.40, sheen=0.0, coat=0.20
+        )
         for obj in meshes:
             key = _mesh_key(obj).lower()
             nl = obj.name.lower()
             if "button" in key or "button" in nl:
                 mat = mat_btn
             elif key.startswith("top") or nl.startswith("top"):
-                # top half reads as insert / screen-adjacent face
                 mat = mat_insert
             elif key.startswith("bottom") or nl.startswith("bottom"):
                 mat = mat_case
             else:
                 mat = mat_case
-            obj.data.materials.clear()
-            obj.data.materials.append(mat)
-            if obj.material_slots:
-                obj.material_slots[0].material = mat
+            _assign_single(obj, mat)
         print("PRODUCT_MATS watchy case/insert/button", flush=True)
         return "watchy"
 
-    # generic: quiet mid-grey plastic, not chalk white
-    mat = _make_principled("Prod_Neutral", (0.36, 0.37, 0.39), 0.50, 0.03, 0.40)
+    mat = _make_principled("Prod_Neutral", (0.30, 0.31, 0.33), 0.46, 0.03, 0.40)
     for obj in meshes:
-        obj.data.materials.clear()
-        obj.data.materials.append(mat)
+        _assign_single(obj, mat)
     print("PRODUCT_MATS generic", flush=True)
     return "generic"
+
 
 
 def shot_list(mode):
@@ -998,9 +1173,10 @@ def main():
     lighting = opts.get("lighting") or "softgrey"
     # Product-mat demos: pull world/lights down so tinted plastics stay readable (not chalk).
     if use_product and lighting != "dark":
-        opts["world_strength"] = min(float(opts.get("world_strength", 0.65)), 0.42)
-        opts["light_scale"] = min(float(opts.get("light_scale", 0.40)), 0.26)
-        opts["exposure"] = min(float(opts.get("exposure", -0.70)), -0.55)
+        # Keep satin readable without chalking mid-greys to clay white (Rams surface gate 1/4).
+        opts["world_strength"] = min(float(opts.get("world_strength", 0.65)), 0.28)
+        opts["light_scale"] = min(float(opts.get("light_scale", 0.40)), 0.18)
+        opts["exposure"] = min(float(opts.get("exposure", -0.70)), -1.05)
         print(
             f"PRODUCT_LIGHTING world_strength={opts['world_strength']} "
             f"light_scale={opts['light_scale']} exposure={opts['exposure']}",

@@ -19,6 +19,17 @@ from pathlib import Path
 import bpy
 from mathutils import Vector
 
+# Local extras (same directory as this script when launched via Blender --python)
+_SCRIPTS_DIR = Path(__file__).resolve().parent if "__file__" in dir() else Path("/workspace/cad-product-shots/scripts")
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+try:
+    from watchy_assemble_extras import add_watchy_screen_and_strap, detect_watchy_family
+except Exception as _watchy_imp_exc:  # pragma: no cover
+    add_watchy_screen_and_strap = None
+    detect_watchy_family = lambda: False
+    print(f"WATCHY_EXTRAS_IMPORT_FAIL {_watchy_imp_exc}", flush=True)
+
 os.environ.setdefault("PYTHONUNBUFFERED", "1")
 try:
     sys.stdout.reconfigure(line_buffering=True)
@@ -74,6 +85,7 @@ def parse_args():
         "hide_supports": False,
         "product_mats": False,
         "headband_proxy": True,
+        "watchy_extras": True,
         "hide_names": None,
     }
     explicit = set()
@@ -164,6 +176,12 @@ def parse_args():
         elif a == "--no-headband-proxy":
             out["headband_proxy"] = False
             explicit.add("headband_proxy")
+        elif a == "--watchy-extras":
+            out["watchy_extras"] = True
+            explicit.add("watchy_extras")
+        elif a == "--no-watchy-extras":
+            out["watchy_extras"] = False
+            explicit.add("watchy_extras")
         elif a == "--force":
             out["force"] = True
         elif a == "--no-copy-repo":
@@ -210,12 +228,16 @@ def look_at(obj, target):
     obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
 
-def mesh_bbox():
+def mesh_bbox(exclude_prefixes=None):
+    """World AABB of visible meshes. Optionally skip helper prefixes (strap tails)."""
     mins = Vector((1e9, 1e9, 1e9))
     maxs = Vector((-1e9, -1e9, -1e9))
     found = False
+    excl = tuple(exclude_prefixes or ())
     for obj in bpy.data.objects:
         if obj.type != "MESH" or obj.hide_render:
+            continue
+        if excl and any(obj.name.startswith(p) for p in excl):
             continue
         found = True
         for corner in obj.bound_box:
@@ -1018,7 +1040,16 @@ def assign_product_materials(kind="auto"):
     if kind == "auto":
         if any(k.startswith("HPH-") for k in keys):
             kind = "ploopy"
-        elif any("button" in n or n.startswith("top") or n.startswith("bottom") for n in names | data_names):
+        elif any(
+            "button" in n
+            or n.startswith("top")
+            or n.startswith("bottom")
+            or "pole02" in n
+            or "yatari" in n
+            or "watchyscreen" in n
+            or "watchystrap" in n
+            for n in names | data_names
+        ):
             kind = "watchy"
         else:
             kind = "generic"
@@ -1057,29 +1088,53 @@ def assign_product_materials(kind="auto"):
         return "ploopy"
 
     if kind == "watchy":
-        # Stronger separation — avoid chalk: darker case, muted warm insert, black buttons.
+        # Yatari2 remodel: dark satin case, light e-ink insert plane, light-grey buttons,
+        # soft dark strap — geometry extras named WatchyScreen* / WatchyStrap*.
         mat_case = _make_principled(
-            "Prod_CasePlastic", (0.028, 0.034, 0.048), 0.36, 0.0, 0.40, sheen=0.0, coat=0.18
+            "Prod_CasePlastic", (0.022, 0.024, 0.028), 0.42, 0.0, 0.38, sheen=0.0, coat=0.14
         )
         mat_insert = _make_principled(
-            "Prod_InsertScreen", (0.12, 0.095, 0.070), 0.50, 0.0, 0.20, sheen=0.16, coat=0.0
+            "Prod_InsertScreen", (0.82, 0.84, 0.78), 0.62, 0.0, 0.10, sheen=0.04, coat=0.0
         )
+        # Tiny emission so e-ink stays readable under product softgrey underexposure.
+        try:
+            nt = mat_insert.node_tree
+            bsdf = nt.nodes.get("Principled BSDF")
+            if bsdf and "Emission Color" in bsdf.inputs:
+                bsdf.inputs["Emission Color"].default_value = (0.75, 0.77, 0.70, 1.0)
+                if "Emission Strength" in bsdf.inputs:
+                    bsdf.inputs["Emission Strength"].default_value = 0.18
+        except Exception:
+            pass
         mat_btn = _make_principled(
-            "Prod_Button", (0.008, 0.008, 0.010), 0.26, 0.45, 0.40, sheen=0.0, coat=0.20
+            "Prod_Button", (0.42, 0.43, 0.45), 0.34, 0.12, 0.42, sheen=0.0, coat=0.16
+        )
+        mat_strap = _make_principled(
+            "Prod_Strap", (0.018, 0.018, 0.020), 0.88, 0.0, 0.06, sheen=0.45, coat=0.0
+        )
+        _add_micro_bump(mat_strap, strength=0.03, scale=18.0)
+        mat_buckle = _make_principled(
+            "Prod_Buckle", (0.12, 0.12, 0.13), 0.40, 0.35, 0.35, sheen=0.0, coat=0.12
         )
         for obj in meshes:
             key = _mesh_key(obj).lower()
             nl = obj.name.lower()
-            if "button" in key or "button" in nl:
+            if "watchyscreen" in nl or "screeninsert" in nl:
+                mat = mat_insert
+            elif "watchystrapbuckle" in nl:
+                mat = mat_buckle
+            elif "watchystrap" in nl:
+                mat = mat_strap
+            elif "button" in key or "button" in nl:
                 mat = mat_btn
             elif key.startswith("top") or nl.startswith("top"):
-                mat = mat_insert
-            elif key.startswith("bottom") or nl.startswith("bottom"):
+                mat = mat_case
+            elif key.startswith("bottom") or nl.startswith("bottom") or "pole02" in nl:
                 mat = mat_case
             else:
                 mat = mat_case
             _assign_single(obj, mat)
-        print("PRODUCT_MATS watchy case/insert/button", flush=True)
+        print("PRODUCT_MATS watchy case/screen/button/strap", flush=True)
         return "watchy"
 
     mat = _make_principled("Prod_Neutral", (0.30, 0.31, 0.33), 0.46, 0.03, 0.40)
@@ -1145,6 +1200,10 @@ def main():
     if bool(opts.get("headband_proxy", True)):
         add_ploopy_headband_proxy(enabled=True)
 
+    # Watchy Rams remodel: recessed screen insert + demo strap (geometry, not paint).
+    if bool(opts.get("watchy_extras", True)) and add_watchy_screen_and_strap is not None:
+        add_watchy_screen_and_strap(enabled=True)
+
     use_clay = bool(opts["clay"]) and not bool(opts.get("no_clay"))
     use_product = bool(opts.get("product_mats", False)) and not use_clay
     if use_clay:
@@ -1163,7 +1222,8 @@ def main():
             # GLB often marks plastics Metallic=1; keep satin character, not chrome/clay.
             satinize_overmetallic(max_metallic=0.12)
 
-    mins, maxs = mesh_bbox()
+    # Frame on case+screen; ignore long strap overhang so watch fills the still.
+    mins, maxs = mesh_bbox(exclude_prefixes=("WatchyStrap",))
     center = (mins + maxs) / 2.0
     size = maxs - mins
     extent = max(size.x, size.y, size.z)
@@ -1220,7 +1280,7 @@ def main():
     for name, frame, az, el, lens, z_bias, r_scale in shots:
         path = safe_write_path(out_dir, name, opts["force"])
         set_frame(frame)
-        mins_f, maxs_f = mesh_bbox()
+        mins_f, maxs_f = mesh_bbox(exclude_prefixes=("WatchyStrap",))
         center_f = (mins_f + maxs_f) / 2.0
         center_f = Vector((center_f.x, center_f.y, center_f.z + z_bias * extent))
         place_camera(cam, center_f, radius * r_scale, az, el, lens)

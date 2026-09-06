@@ -11,6 +11,14 @@ from mathutils import Vector
 HELPER_NAMES = (
     "WatchyScreenInsert",
     "WatchyScreenGlass",
+    "WatchyScreenBackplate",
+    "WatchyConsumerBezel",
+    "WatchyBezelOuter",
+    "WatchyBezelCutter",
+    "WatchyBevelMetalN",
+    "WatchyBevelMetalS",
+    "WatchyBevelMetalE",
+    "WatchyBevelMetalW",
     "WatchyStrap",
     "WatchyStrapNorth",
     "WatchyStrapSouth",
@@ -239,19 +247,203 @@ def _party_dial_from_window():
     }
 
 
+
+
+def _party_quiet_face_buttons():
+    """Knife-3: Party side buttons invade the dial face (read as 4 DIY clips on-glass).
+
+    Tuck them onto the outer ±X walls mid-thickness so they no longer overlap the
+    e-ink aperture; keep them as quiet side controls, not face retainers.
+    """
+    buttons = []
+    for o in bpy.data.objects:
+        if o.type != "MESH" or o.hide_render:
+            continue
+        nl = (o.name + " " + (getattr(o.data, "name", "") or "")).lower()
+        if "button" in nl:
+            buttons.append(o)
+    if not buttons:
+        print("WATCHY_EXTRAS knife-3 no party buttons to tuck", flush=True)
+        return
+    mins, maxs = _mesh_bbox_world()
+    size = maxs - mins
+    y_mid = mins.y + 0.55 * size.y
+    # Target: thin pill on outer wall, fully outside dial/bezel opening.
+    target_x = 0.5 * size.x - 0.00035  # near outer skin
+    tw = max(0.00055, 0.028 * size.x)  # thickness into case from wall
+    th = max(0.0010, 0.055 * size.z)   # along Z (button length)
+    td = max(0.00070, 0.22 * size.y)   # along thickness Y
+    for o in buttons:
+        cx = (o.matrix_world @ Vector(o.bound_box[0])).x
+        # rough center
+        corners = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        ocx = sum(c.x for c in corners) / 8.0
+        ocz = sum(c.z for c in corners) / 8.0
+        side = 1.0 if ocx >= 0.0 else -1.0
+        # Rebuild as a quiet side pill (avoid CAD wedge teeth on the face).
+        mesh = o.data
+        bpy.data.objects.remove(o, do_unlink=True)
+        if mesh and mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+        bpy.ops.mesh.primitive_cube_add(size=1.0)
+        nb = bpy.context.object
+        nb.name = f"PartyButtonSide{'R' if side > 0 else 'L'}_{ocz:.3f}"
+        nb.scale = (tw, td, th)
+        nb.location = (side * (0.5 * size.x - 0.45 * tw), y_mid, ocz)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        _bevel_light(nb, width=max(0.00008, 0.18 * tw), segments=2)
+    print(f"WATCHY_EXTRAS knife-3 tucked {len(buttons)} face-overlap buttons to side walls", flush=True)
+
+
+def _is_party_top(obj) -> bool:
+    n = (obj.name or "").lower()
+    dn = (getattr(obj.data, "name", "") or "").lower()
+    blob = n + " " + dn
+    if "bottom" in blob or "button" in blob or "strap" in blob or "screen" in blob:
+        return False
+    if "partytop" in n.replace("_", "") or n == "partytop":
+        return True
+    if "case_top" in dn or ( "top" in n and "party" in blob):
+        return True
+    return False
+
+
+def _party_suppress_clips_with_bezel(pocket):
+    """Knife-3: PartyTop corner clips read as DIY retainers and steal the brightest rim.
+
+    Hide the clip plate and swap in a flush consumer bezel lip so featured stills
+    lead with an integrated dial, not wedge teeth on the glass.
+    """
+    hidden = 0
+    for obj in list(bpy.data.objects):
+        if obj.type != "MESH":
+            continue
+        if _is_party_top(obj):
+            obj.hide_render = True
+            obj.hide_viewport = True
+            hidden += 1
+            print(f"WATCHY_EXTRAS knife-3 hide clip plate {obj.name}", flush=True)
+    if hidden == 0:
+        print("WATCHY_EXTRAS knife-3 no PartyTop clip plate found", flush=True)
+
+    mins, maxs = pocket["mins"], pocket["maxs"]
+    size = maxs - mins
+    y_face = float(pocket.get("y_bezel", mins.y))
+    cx = 0.5 * (mins.x + maxs.x)
+    cz = 0.5 * (mins.z + maxs.z)
+    # Outer frame ≈ case footprint; inner lip overlaps glass edge (covers old clip seats).
+    ox = max(0.03, 0.985 * size.x)
+    oz = max(0.024, 0.985 * size.z)
+    dial_w = max(1e-4, pocket["x1"] - pocket["x0"])
+    dial_h = max(1e-4, pocket["z1"] - pocket["z0"])
+    # Wider lip covers residual pocket corners so no DIY tab wedges read on-glass.
+    ix = dial_w * 0.82
+    iz = dial_h * 0.82
+    thick = max(0.00055, 0.14 * size.y)
+
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    outer = bpy.context.object
+    outer.name = "WatchyBezelOuter"
+    outer.scale = (ox, thick, oz)
+    outer.location = (cx, y_face - 0.20 * thick, cz)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    cutter = bpy.context.object
+    cutter.name = "WatchyBezelCutter"
+    cutter.scale = (ix, thick * 2.4, iz)
+    cutter.location = (cx, y_face - 0.20 * thick, cz)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    mod = outer.modifiers.new(name="WatchyBezelHole", type="BOOLEAN")
+    mod.operation = "DIFFERENCE"
+    mod.solver = "EXACT"
+    mod.object = cutter
+    bpy.context.view_layer.objects.active = outer
+    outer.select_set(True)
+    try:
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    except Exception as exc:
+        print(f"WATCHY_EXTRAS bezel boolean failed ({exc})", flush=True)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    outer.name = "WatchyConsumerBezel"
+    _bevel_light(outer, width=max(0.00008, 0.12 * thick), segments=2)
+    print(
+        f"WATCHY_EXTRAS knife-3 consumer bezel outer={ox:.4f}x{oz:.4f} "
+        f"inner={ix:.4f}x{iz:.4f} t={thick:.5f}",
+        flush=True,
+    )
+    # Seat screen flush under bezel lip (shallow) — deep recess reads DIY cavity.
+    pocket["y"] = y_face + 0.35 * thick + max(0.00012, 0.03 * size.y)
+    pocket["y_bezel"] = y_face
+    return outer
+
+
+def _add_case_bevel_metal(pocket):
+    """Tiny cold-metal only on front bevels / lug-adjacent edges — not uniform silver shell."""
+    mins, maxs = pocket["mins"], pocket["maxs"]
+    size = maxs - mins
+    y_face = float(pocket.get("y_bezel", mins.y))
+    cx = 0.5 * (mins.x + maxs.x)
+    cz = 0.5 * (mins.z + maxs.z)
+    # Thin edge strips along the four front perimeter sides.
+    t = max(0.00018, 0.035 * size.y)
+    depth = max(0.00035, 0.08 * size.y)
+    inset = 0.012 * size.x
+
+    # Short cold-metal ticks near strap lugs only — tiny accents, not silver rails.
+    lug_z = 0.22 * size.z
+    specs = [
+        ("WatchyBevelMetalN", (size.x * 0.28, depth, t), (cx, y_face - 0.10 * depth, maxs.z - inset)),
+        ("WatchyBevelMetalS", (size.x * 0.28, depth, t), (cx, y_face - 0.10 * depth, mins.z + inset)),
+        ("WatchyBevelMetalE", (t, depth, lug_z), (maxs.x - inset, y_face - 0.10 * depth, maxs.z - 0.18 * size.z)),
+        ("WatchyBevelMetalW", (t, depth, lug_z), (mins.x + inset, y_face - 0.10 * depth, maxs.z - 0.18 * size.z)),
+    ]
+    for name, scale, loc in specs:
+        bpy.ops.mesh.primitive_cube_add(size=1.0)
+        obj = bpy.context.object
+        obj.name = name
+        obj.scale = scale
+        obj.location = loc
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        _bevel_light(obj, width=max(0.00005, 0.25 * t), segments=2)
+    print("WATCHY_EXTRAS knife-3 cold-metal bevel accents x4", flush=True)
+
+
+
+def _add_opaque_screen_backplate(pocket, sx, sz, cx, cz, y_insert, thickness):
+    """Fill dial pocket behind e-ink so cavity / boolean walls never read through."""
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    plate = bpy.context.object
+    plate.name = "WatchyScreenBackplate"
+    plate_t = max(thickness * 1.8, 0.0007)
+    plate.scale = (sx * 1.02, plate_t, sz * 1.02)
+    plate.location = (cx, y_insert + 0.65 * thickness + 0.45 * plate_t, cz)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    print(
+        f"WATCHY_EXTRAS knife-3 opaque backplate {sx*1.02:.4f}x{sz*1.02:.4f} t={plate_t:.5f}",
+        flush=True,
+    )
+    return plate
+
+
 def add_watchy_screen_insert(pocket):
+
     sx = max(1e-4, pocket["x1"] - pocket["x0"])
     sz = max(1e-4, pocket["z1"] - pocket["z0"])
     case_y = max(1e-4, pocket["maxs"].y - pocket["mins"].y)
-    thickness = max(0.00028, 0.040 * case_y)
-    glass_t = max(0.00010, 0.012 * case_y)
+    # Knife-3: thicker opaque e-ink slab so cavity cannot read through gaps/glass.
+    thickness = max(0.00045, 0.070 * case_y)
+    glass_t = max(0.00005, 0.0055 * case_y)
     cx = 0.5 * (pocket["x0"] + pocket["x1"])
     cz = 0.5 * (pocket["z0"] + pocket["z1"])
     y_insert = pocket["y"]
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     obj = bpy.context.object
     obj.name = "WatchyScreenInsert"
-    obj.scale = (sx * 0.97, thickness, sz * 0.97)
+    # Fill the dial closely — leave only a hair for bezel lip (no membrane gaps).
+    # Paper fills under bezel lip; visible aperture is bezel inner opening.
+    obj.scale = (sx * 0.88, thickness, sz * 0.88)
     obj.location = (cx, y_insert, cz)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     # UV: project so Face.png covers the camera (-Y) face.
@@ -259,29 +451,49 @@ def add_watchy_screen_insert(pocket):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.cube_project(cube_size=1.0, correct_aspect=True, scale_to_bounds=True)
     bpy.ops.object.mode_set(mode="OBJECT")
+    _add_opaque_screen_backplate(pocket, sx * 0.88, sz * 0.88, cx, cz, y_insert, thickness)
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     glass = bpy.context.object
     glass.name = "WatchyScreenGlass"
-    glass.scale = (sx * 1.01, glass_t, sz * 1.01)
-    glass.location = (cx, y_insert - 0.65 * thickness - 0.5 * glass_t, cz)
+    glass.scale = (sx * 0.875, glass_t, sz * 0.875)
+    glass.location = (cx, y_insert - 0.52 * thickness - 0.55 * glass_t, cz)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     print(
-        f"WATCHY_EXTRAS screen {obj.name} size=({sx:.4f},{thickness:.4f},{sz:.4f}) y={y_insert:.4f} + glass",
+        f"WATCHY_EXTRAS screen {obj.name} size=({sx:.4f},{thickness:.4f},{sz:.4f}) "
+        f"y={y_insert:.4f} + glass_t={glass_t:.5f} (knife-3 opaque paper)",
         flush=True,
     )
     return obj
 
 
+
+def _bevel_light(obj, width=0.00018, segments=2):
+    """Soft silicone edge — cubes alone read as fixture rails."""
+    try:
+        mod = obj.modifiers.new(name="StrapBevel", type="BEVEL")
+        mod.width = float(width)
+        mod.segments = int(segments)
+        mod.limit_method = "ANGLE"
+        mod.angle_limit = 0.5
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    except Exception as exc:
+        print(f"WATCHY_EXTRAS bevel skip {obj.name}: {exc}", flush=True)
+
+
 def add_watchy_strap(pocket):
+    """Consumer silicone strap — not an industrial rail / work-fixture band."""
     mins, maxs = pocket["mins"], pocket["maxs"]
     size = maxs - mins
     cx = 0.5 * (mins.x + maxs.x)
-    strap_w = max(0.010, min(0.019, 0.44 * size.x))
-    strap_t = max(0.00085, 0.14 * size.y)
-    y_strap = mins.y + 0.40 * size.y
-    overhang = max(0.030, 0.90 * size.z)
-    dial_z0 = pocket["z0"] - 0.02 * size.z
-    dial_z1 = pocket["z1"] + 0.02 * size.z
+    # Knife-2: slightly wider + thinner = wrist strap, not fixture bar.
+    strap_w = max(0.012, min(0.022, 0.52 * size.x))
+    strap_t = max(0.00055, 0.095 * size.y)
+    y_strap = mins.y + 0.38 * size.y
+    overhang = max(0.026, 0.78 * size.z)
+    dial_z0 = pocket["z0"] - 0.015 * size.z
+    dial_z1 = pocket["z1"] + 0.015 * size.z
 
     def _band(name, z0, z1, y=None, w_scale=1.0, t_scale=1.0):
         length = max(1e-4, z1 - z0)
@@ -295,24 +507,59 @@ def add_watchy_strap(pocket):
 
     _band("WatchyStrapSouth", mins.z - overhang, dial_z0)
     north = _band("WatchyStrapNorth", dial_z1, maxs.z + overhang)
-    _band("WatchyStrap", mins.z + 0.02 * size.z, maxs.z - 0.02 * size.z, y=maxs.y - 0.18 * size.y, w_scale=0.88, t_scale=0.72)
-    _band("WatchyStrapLugNorth", dial_z1 - 0.02 * size.z, dial_z1 + 0.03 * size.z, y=y_strap + 0.04 * size.y, w_scale=1.05, t_scale=1.15)
-    _band("WatchyStrapLugSouth", dial_z0 - 0.03 * size.z, dial_z0 + 0.02 * size.z, y=y_strap + 0.04 * size.y, w_scale=1.05, t_scale=1.15)
-    keeper_z = maxs.z + 0.28 * overhang
-    for i, name in enumerate(("WatchyStrapKeeperA", "WatchyStrapKeeperB")):
-        bpy.ops.mesh.primitive_cube_add(size=1.0)
-        k = bpy.context.object
-        k.name = name
-        k.scale = (strap_w * 1.08, strap_t * 1.7, strap_t * 1.35)
-        k.location = (cx, y_strap, keeper_z + i * strap_t * 2.5)
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # Quiet rear pass-through (hidden-ish under case) — keep thinner.
+    _band(
+        "WatchyStrap",
+        mins.z + 0.04 * size.z,
+        maxs.z - 0.04 * size.z,
+        y=maxs.y - 0.22 * size.y,
+        w_scale=0.82,
+        t_scale=0.58,
+    )
+    # Local cold-metal lug accents (short, flush) — not long rails.
+    _band(
+        "WatchyStrapLugNorth",
+        dial_z1 - 0.012 * size.z,
+        dial_z1 + 0.018 * size.z,
+        y=y_strap + 0.02 * size.y,
+        w_scale=1.02,
+        t_scale=1.05,
+    )
+    _band(
+        "WatchyStrapLugSouth",
+        dial_z0 - 0.018 * size.z,
+        dial_z0 + 0.012 * size.z,
+        y=y_strap + 0.02 * size.y,
+        w_scale=1.02,
+        t_scale=1.05,
+    )
+    # Single soft silicone keeper (drop second fixture ring).
+    keeper_z = maxs.z + 0.22 * overhang
+    bpy.ops.mesh.primitive_cube_add(size=1.0)
+    k = bpy.context.object
+    k.name = "WatchyStrapKeeperA"
+    k.scale = (strap_w * 1.04, strap_t * 1.35, strap_t * 0.95)
+    k.location = (cx, y_strap, keeper_z)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    # Tip loop: same silicone family as strap (not a bright metal buckle plate).
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     buckle = bpy.context.object
     buckle.name = "WatchyStrapBuckle"
-    buckle.scale = (strap_w * 0.90, strap_t * 1.3, strap_t * 3.0)
-    buckle.location = (cx, y_strap, maxs.z + 0.55 * overhang)
+    buckle.scale = (strap_w * 0.78, strap_t * 0.95, strap_t * 2.2)
+    buckle.location = (cx, y_strap, maxs.z + 0.48 * overhang)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    print(f"WATCHY_EXTRAS strap w={strap_w:.4f} t={strap_t:.4f} overhang={overhang:.4f}", flush=True)
+    for nm in (
+        "WatchyStrapSouth",
+        "WatchyStrapNorth",
+        "WatchyStrapKeeperA",
+        "WatchyStrapBuckle",
+        "WatchyStrapLugNorth",
+        "WatchyStrapLugSouth",
+    ):
+        o = bpy.data.objects.get(nm)
+        if o:
+            _bevel_light(o, width=max(0.00012, 0.22 * strap_t), segments=3)
+    print(f"WATCHY_EXTRAS strap w={strap_w:.4f} t={strap_t:.4f} overhang={overhang:.4f} (silicone knife-2)", flush=True)
     return north
 
 
@@ -330,6 +577,10 @@ def add_watchy_screen_and_strap(enabled=True):
         if pocket is None:
             pocket = cut_watchy_dial_window(mins, maxs) or _dial_fallback(mins, maxs)
         print("WATCHY_EXTRAS party path", flush=True)
+        # Knife-3 priority: kill DIY clip dominance before mats/glass polish.
+        _party_quiet_face_buttons()
+        _party_suppress_clips_with_bezel(pocket)
+        _add_case_bevel_metal(pocket)
     else:
         pocket = cut_watchy_dial_window(mins, maxs) or _dial_fallback(mins, maxs)
         print("WATCHY_EXTRAS yatari-like path", flush=True)

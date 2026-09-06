@@ -48,7 +48,7 @@ Primary CTAs (hero, sticky header, footer) open `mailto:jexlau.dev@gmail.com?sub
 
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
 
-See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Demo · open CAD showcases open headphones and the open e-ink watch case (Yatari2 demo assemble; no trademark claim). Do not add stock or fake 3D.
+See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. The live Demo · open CAD showcase is open headphones — gallery shows material-passed stills only (`08` featured + `07`, `09`, `12`); clay angles stay off the page pending a full re-render. The e-ink watch case pack is under construction and is not shown as a qualified demo. Do not add stock or fake 3D.
 
 ## Case #1 multi-angle stills
 

@@ -39,8 +39,9 @@ Soft-grey controlled studio — **not** paper-white cyclorama:
 
 ## Studio-dark preset (DJI-track sample)
 
-Near-black backdrop + high rim/kicker contrast. Does **not** replace the soft-grey
-live pack — keep `--preset softgrey` (default) for readable CAD DoD stills.
+Near-black backdrop + high rim/kicker contrast. Ploopy live featured is this
+dark-premium / DJI-bar track. Soft-grey (`--preset softgrey`) stays the readable
+CAD DoD / structure-appendix pack — not the featured landing look.
 
 Single-shot Watchy three-quarter preview:
 

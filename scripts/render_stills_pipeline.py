@@ -294,11 +294,12 @@ def setup_studio(target, scale, light_scale=0.28, style="softgrey"):
     s = max(scale, 0.05)
     e = max(0.18, min((s / 0.25) ** 2, 1.10)) * float(light_scale)
     if style == "dark":
-        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 18.0 * e, 0.70 * s, (1.0, 0.97, 0.92))
-        add_area("Fill", target + Vector((1.10 * s, -0.30 * s, 0.35 * s)), target, 2.4 * e, 1.40 * s, (0.72, 0.82, 1.0))
-        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 28.0 * e, 0.50 * s, (1.0, 0.93, 0.86))
-        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 12.0 * e, 0.42 * s, (0.95, 0.98, 1.0))
-        add_area("Top", target + Vector((0.0, -0.10 * s, 1.70 * s)), target, 3.0 * e, 1.20 * s, (0.95, 0.97, 1.0))
+        # DJI-track: high rim/kicker vs fill so charcoal satin shells keep a readable edge.
+        add_area("Key", target + Vector((-0.70 * s, -0.95 * s, 0.90 * s)), target, 20.0 * e, 0.68 * s, (1.0, 0.97, 0.92))
+        add_area("Fill", target + Vector((1.10 * s, -0.30 * s, 0.35 * s)), target, 1.8 * e, 1.40 * s, (0.72, 0.82, 1.0))
+        add_area("Rim", target + Vector((0.20 * s, 1.15 * s, 0.70 * s)), target, 36.0 * e, 0.46 * s, (1.0, 0.93, 0.86))
+        add_area("Kicker", target + Vector((-0.85 * s, 0.75 * s, 0.45 * s)), target, 16.0 * e, 0.40 * s, (0.95, 0.98, 1.0))
+        add_area("Top", target + Vector((0.0, -0.10 * s, 1.70 * s)), target, 2.4 * e, 1.20 * s, (0.95, 0.97, 1.0))
     else:
         add_area("Key", target + Vector((-0.65 * s, -0.90 * s, 0.85 * s)), target, 34.0 * e, 0.85 * s, (1.0, 0.96, 0.90))
         add_area("Fill", target + Vector((1.05 * s, -0.35 * s, 0.40 * s)), target, 7.0 * e, 1.35 * s, (0.78, 0.86, 1.0))
@@ -876,11 +877,12 @@ def _assign_single(obj, mat):
         obj.material_slots[0].material = mat
 
 
-def _earcup_shell_pad_material(name="Prod_EarcupShellPad"):
+def _earcup_shell_pad_material(name="Prod_EarcupShellPad", dark_premium=False):
     """Satin shell mixed → soft warm pad by object-space medial ring (smooth falloff).
 
     Both L/R cups: local −X is medial (toward head); disc lies in local YZ.
     GLB has no UVs — procedural Mix avoids jagged per-face tessellation.
+    dark_premium: charcoal satin shell + stronger coat for DJI-bar deep studio.
     """
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
@@ -892,12 +894,19 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad"):
 
     shell = nt.nodes.new("ShaderNodeBsdfPrincipled")
     shell.location = (700, 220)
-    shell.inputs["Base Color"].default_value = (0.18, 0.19, 0.22, 1.0)
-    shell.inputs["Roughness"].default_value = 0.34
+    if dark_premium:
+        # Charcoal injection-mold satin (DJI-bar): dark base, coat catches rim.
+        shell.inputs["Base Color"].default_value = (0.048, 0.050, 0.056, 1.0)
+        shell.inputs["Roughness"].default_value = 0.28
+        coat_w, spec = 0.26, 0.58
+    else:
+        shell.inputs["Base Color"].default_value = (0.18, 0.19, 0.22, 1.0)
+        shell.inputs["Roughness"].default_value = 0.34
+        coat_w, spec = 0.12, 0.48
     if "Specular IOR Level" in shell.inputs:
-        shell.inputs["Specular IOR Level"].default_value = 0.48
+        shell.inputs["Specular IOR Level"].default_value = float(spec)
     if "Coat Weight" in shell.inputs:
-        shell.inputs["Coat Weight"].default_value = 0.12
+        shell.inputs["Coat Weight"].default_value = float(coat_w)
     if "Metallic" in shell.inputs:
         shell.inputs["Metallic"].default_value = 0.0
     if "Emission Strength" in shell.inputs:
@@ -905,7 +914,10 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad"):
 
     pad = nt.nodes.new("ShaderNodeBsdfPrincipled")
     pad.location = (700, -260)
-    pad.inputs["Base Color"].default_value = (0.040, 0.028, 0.022, 1.0)
+    if dark_premium:
+        pad.inputs["Base Color"].default_value = (0.032, 0.022, 0.016, 1.0)
+    else:
+        pad.inputs["Base Color"].default_value = (0.040, 0.028, 0.022, 1.0)
     pad.inputs["Roughness"].default_value = 0.95
     if "Specular IOR Level" in pad.inputs:
         pad.inputs["Specular IOR Level"].default_value = 0.03
@@ -1028,8 +1040,11 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad"):
 
 
 
-def assign_product_materials(kind="auto"):
-    """Assignable product plastics — not white/lavender clay (Rams surface DoD)."""
+def assign_product_materials(kind="auto", dark_premium=False):
+    """Assignable product plastics — not white/lavender clay (Rams surface DoD).
+
+    dark_premium: charcoal satin palette for studio-dark / DJI-bar featured stills.
+    """
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.name != "CycloramaFloor" and not o.hide_render]
     if not meshes:
         return "none"
@@ -1055,22 +1070,35 @@ def assign_product_materials(kind="auto"):
             kind = "generic"
 
     if kind == "ploopy":
-        mat_earcup = _earcup_shell_pad_material()
-        mat_mesh = _make_principled(
-            "Prod_DriverMesh", (0.035, 0.038, 0.045), 0.26, 0.68, 0.38, sheen=0.0, coat=0.14
-        )
-        mat_metal = _make_principled(
-            "Prod_MetalAccent", (0.38, 0.39, 0.42), 0.28, 0.75, 0.42, sheen=0.0, coat=0.12
-        )
-        # Headband fabric: clearly darker than shell so crown reads as another material.
-        mat_band = _make_principled(
-            "Prod_Headband", (0.022, 0.024, 0.030), 0.93, 0.0, 0.04, sheen=0.60, coat=0.0
-        )
+        mat_earcup = _earcup_shell_pad_material(dark_premium=bool(dark_premium))
+        if dark_premium:
+            mat_mesh = _make_principled(
+                "Prod_DriverMesh", (0.022, 0.024, 0.028), 0.22, 0.78, 0.42, sheen=0.0, coat=0.18
+            )
+            mat_metal = _make_principled(
+                "Prod_MetalAccent", (0.28, 0.29, 0.32), 0.24, 0.82, 0.48, sheen=0.0, coat=0.16
+            )
+            mat_band = _make_principled(
+                "Prod_Headband", (0.014, 0.015, 0.018), 0.90, 0.0, 0.05, sheen=0.55, coat=0.0
+            )
+            mat_shell = _make_principled(
+                "Prod_PlasticShell", (0.048, 0.050, 0.056), 0.28, 0.0, 0.58, sheen=0.0, coat=0.26
+            )
+        else:
+            mat_mesh = _make_principled(
+                "Prod_DriverMesh", (0.035, 0.038, 0.045), 0.26, 0.68, 0.38, sheen=0.0, coat=0.14
+            )
+            mat_metal = _make_principled(
+                "Prod_MetalAccent", (0.38, 0.39, 0.42), 0.28, 0.75, 0.42, sheen=0.0, coat=0.12
+            )
+            # Headband fabric: clearly darker than shell so crown reads as another material.
+            mat_band = _make_principled(
+                "Prod_Headband", (0.022, 0.024, 0.030), 0.93, 0.0, 0.04, sheen=0.60, coat=0.0
+            )
+            mat_shell = _make_principled(
+                "Prod_PlasticShell", (0.22, 0.23, 0.26), 0.34, 0.0, 0.48, sheen=0.0, coat=0.12
+            )
         _add_micro_bump(mat_band, strength=0.04, scale=26.0)
-        # Fallback satin shell for any non-cup leftovers
-        mat_shell = _make_principled(
-            "Prod_PlasticShell", (0.22, 0.23, 0.26), 0.34, 0.0, 0.48, sheen=0.0, coat=0.12
-        )
 
         for obj in meshes:
             key = _mesh_key(obj)
@@ -1210,7 +1238,11 @@ def main():
         apply_simple_material_if_needed(force=True)
     elif use_product:
         # Prefer readable product plastics over white clay / lavender CAD placeholders.
-        assign_product_materials(kind="auto")
+        # Dark studio featured: charcoal satin palette (DJI-bar), not soft-grey lab clay.
+        assign_product_materials(
+            kind="auto",
+            dark_premium=(opts.get("lighting") or "softgrey") == "dark",
+        )
     elif kind in ("stl", "step", "obj"):
         # Assign NeutralPlastic only when meshes have no materials (never force-clay on dark).
         apply_simple_material_if_needed(force=False)

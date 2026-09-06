@@ -57,6 +57,9 @@ cp "$OUT/08-three-quarter.jpg" media/demo-watchy/stills/_preview-dark-08.jpg
 ```
 
 Same knobs for Ploopy (`media/demo-ploopy/source/PloopyHeadphones-RevA.glb` → `media/demo-ploopy/stills/_preview-dark-08.jpg`).
+For DJI-bar featured candidates add `--product-mats --hide-supports --headband-proxy`
+(charcoal satin shell under `--preset dark`). Helper: `scripts/run_demo_renders.sh ploopy-dark`.
+Soft-grey `_preview-sg-*` remains structure appendix only — not featured.
 Same knobs for Case#1 (`catellect-product-story-v2` GLB → `media/case-01/stills/_preview-dark-08.jpg`).
 Same knobs for Case#1 top/detail (`_preview-dark-09.jpg`, `_preview-dark-12.jpg`; Rim 32 / Kicker 14 render-time).
 

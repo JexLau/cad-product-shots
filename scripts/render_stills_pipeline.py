@@ -1042,10 +1042,17 @@ def _earcup_shell_pad_material(name="Prod_EarcupShellPad", dark_premium=False):
 
 
 
-def _eink_face_texture_path(dark_toned=False):
+def _eink_face_texture_path(dark_toned=False, paper_light=False):
     here = Path(__file__).resolve().parent
     base = here.parent / "media" / "demo-watchy" / "source"
-    if dark_toned:
+    if paper_light:
+        # Knife-3: light-grey e-ink paper (readable Face, not dark membrane).
+        order = (
+            base / "eink_face_paper_light.png",
+            base / "party" / "Face.png",
+            base / "eink_face_restrained.png",
+        )
+    elif dark_toned:
         order = (
             base / "eink_face_dark_toned.png",
             base / "eink_face_restrained.png",
@@ -1059,11 +1066,20 @@ def _eink_face_texture_path(dark_toned=False):
     return None
 
 
-def _make_eink_screen_material(name="Prod_InsertScreen", dark_toned=False):
-    # Dark-premium: muted e-ink paper (not high-key white sticker).
-    base_col = (0.22, 0.23, 0.20) if dark_toned else (0.48, 0.50, 0.44)
-    mat = _make_principled(name, base_col, 0.86, 0.0, 0.04, sheen=0.04, coat=0.0)
-    tex_path = _eink_face_texture_path(dark_toned=dark_toned)
+def _make_eink_screen_material(name="Prod_InsertScreen", dark_toned=False, paper_light=False):
+    # Knife-3 paper_light: opaque light-grey e-ink (must not read as translucent cavity).
+    # Legacy dark_toned kept for soft-grey / older previews.
+    if paper_light:
+        base_col = (0.58, 0.60, 0.55)
+        rough, spec, sheen = 0.92, 0.03, 0.06
+    elif dark_toned:
+        base_col = (0.22, 0.23, 0.20)
+        rough, spec, sheen = 0.86, 0.04, 0.04
+    else:
+        base_col = (0.48, 0.50, 0.44)
+        rough, spec, sheen = 0.86, 0.04, 0.04
+    mat = _make_principled(name, base_col, rough, 0.0, spec, sheen=sheen, coat=0.0)
+    tex_path = _eink_face_texture_path(dark_toned=dark_toned, paper_light=paper_light)
     if not tex_path:
         print("EINK_TEX missing; flat paper only", flush=True)
         return mat
@@ -1075,8 +1091,15 @@ def _make_eink_screen_material(name="Prod_InsertScreen", dark_toned=False):
     tex.interpolation = "Closest"
     coord = nt.nodes.new("ShaderNodeTexCoord")
     nt.links.new(coord.outputs["UV"], tex.inputs["Vector"])
-    if dark_toned:
-        # Soft HSV value pull so even Face.png midtones stay under glass (not chalk paper).
+    if paper_light:
+        # Keep Face midtones as paper; slight value pull so UI stays soft under glass.
+        hsv = nt.nodes.new("ShaderNodeHueSaturation")
+        hsv.inputs["Value"].default_value = 0.92
+        hsv.inputs["Saturation"].default_value = 0.85
+        hsv.inputs["Fac"].default_value = 1.0
+        nt.links.new(tex.outputs["Color"], hsv.inputs["Color"])
+        nt.links.new(hsv.outputs["Color"], bsdf.inputs["Base Color"])
+    elif dark_toned:
         hsv = nt.nodes.new("ShaderNodeHueSaturation")
         hsv.inputs["Value"].default_value = 0.70
         hsv.inputs["Saturation"].default_value = 0.75
@@ -1087,25 +1110,33 @@ def _make_eink_screen_material(name="Prod_InsertScreen", dark_toned=False):
         nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     if "Emission Strength" in bsdf.inputs:
         bsdf.inputs["Emission Strength"].default_value = 0.0
-    print(f"EINK_TEX {tex_path.name} dark_toned={dark_toned}", flush=True)
+    # Opaque paper — never transmit into cavity.
+    if "Transmission Weight" in bsdf.inputs:
+        bsdf.inputs["Transmission Weight"].default_value = 0.0
+    if "Alpha" in bsdf.inputs:
+        bsdf.inputs["Alpha"].default_value = 1.0
+    print(
+        f"EINK_TEX {tex_path.name} dark_toned={dark_toned} paper_light={paper_light}",
+        flush=True,
+    )
     return mat
 
 
 def _make_screen_glass_material(name="Prod_ScreenGlass"):
-    """Thin cover glass: specular/Fresnel coat over UI — avoid solid transmission (black void)."""
-    mat = _make_principled(name, (0.55, 0.58, 0.62), 0.06, 0.0, 0.85, sheen=0.0, coat=1.0)
+    """Thin cover glass: Fresnel coat over opaque e-ink — no cavity see-through."""
+    mat = _make_principled(name, (0.72, 0.74, 0.76), 0.045, 0.0, 0.55, sheen=0.0, coat=0.85)
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     if not bsdf:
         return mat
     if "Coat Roughness" in bsdf.inputs:
-        bsdf.inputs["Coat Roughness"].default_value = 0.04
+        bsdf.inputs["Coat Roughness"].default_value = 0.035
     if "IOR" in bsdf.inputs:
-        bsdf.inputs["IOR"].default_value = 1.45
+        bsdf.inputs["IOR"].default_value = 1.48
     if "Transmission Weight" in bsdf.inputs:
         bsdf.inputs["Transmission Weight"].default_value = 0.0
     if "Alpha" in bsdf.inputs:
-        # Thin clear sheet; coat/specular carry Fresnel glints over muted e-ink.
-        bsdf.inputs["Alpha"].default_value = 0.16
+        # Knife-3: much less membrane alpha; coat carries the glint over opaque paper.
+        bsdf.inputs["Alpha"].default_value = 0.08
         try:
             mat.blend_method = "BLEND"
             mat.shadow_method = "NONE"
@@ -1192,21 +1223,23 @@ def assign_product_materials(kind="auto", dark_premium=False):
         return "ploopy"
 
     if kind == "watchy":
-        # Knife-2: satin engineering plastic body (not uniform silver spray).
-        # Local cold metal only on lug accents; buckle tip stays quiet silicone/plastic.
+        # Knife-3: deep satin body + local cold metal on lugs/bevels; opaque light-grey e-ink.
+        # Consumer bezel replaces PartyTop DIY clips (assigned case plastic).
         if dark_premium:
-            # Charcoal injection-mold satin — flat watch faces wash to silver if brighter.
+            # Charcoal injection-mold satin — Ploopy-pass roll-off, not silver spray.
             mat_case = _make_principled(
-                "Prod_CasePlastic", (0.022, 0.023, 0.026), 0.58, 0.0, 0.18, sheen=0.0, coat=0.04
+                "Prod_CasePlastic", (0.028, 0.029, 0.032), 0.46, 0.0, 0.28, sheen=0.0, coat=0.10
             )
-            _add_micro_bump(mat_case, strength=0.028, scale=80.0)
-            mat_insert = _make_eink_screen_material("Prod_InsertScreen", dark_toned=True)
+            _add_micro_bump(mat_case, strength=0.016, scale=110.0)
+            mat_insert = _make_eink_screen_material(
+                "Prod_InsertScreen", dark_toned=False, paper_light=True
+            )
             mat_btn = _make_principled(
-                "Prod_Button", (0.050, 0.052, 0.056), 0.40, 0.0, 0.32, sheen=0.0, coat=0.08
+                "Prod_Button", (0.055, 0.057, 0.062), 0.36, 0.0, 0.38, sheen=0.0, coat=0.12
             )
-            # Cold dark metal — only short lug pieces (local accents, not whole shell).
+            # Cold metal — lugs + bevel accents only (readable micro-glints).
             mat_lug = _make_principled(
-                "Prod_MetalAccent", (0.16, 0.17, 0.19), 0.32, 0.68, 0.42, sheen=0.0, coat=0.10
+                "Prod_MetalAccent", (0.26, 0.27, 0.30), 0.30, 0.72, 0.48, sheen=0.0, coat=0.12
             )
             mat_strap = _make_principled(
                 "Prod_Strap", (0.008, 0.008, 0.009), 0.90, 0.0, 0.05, sheen=0.58, coat=0.0
@@ -1239,21 +1272,26 @@ def assign_product_materials(kind="auto", dark_premium=False):
             nl = obj.name.lower()
             if "watchyscreenglass" in nl:
                 mat = mat_glass
+            elif "watchyscreenbackplate" in nl:
+                mat = mat_case
             elif "watchyscreen" in nl or "screeninsert" in nl:
                 mat = mat_insert
-            elif "watchystraplug" in nl:
+            elif "watchybevelmetal" in nl or "watchystraplug" in nl:
                 mat = mat_lug
             elif "watchystrapbuckle" in nl or "watchystrapkeeper" in nl:
                 mat = mat_buckle
             elif "watchystrap" in nl:
                 mat = mat_strap
+            elif "watchyconsumerbezel" in nl or "watchybezel" in nl:
+                mat = mat_case
             elif "button" in key or "button" in nl:
                 mat = mat_btn
             else:
                 mat = mat_case
             _assign_single(obj, mat)
         print(
-            f"PRODUCT_MATS watchy case/eink+glass/button/strap dark_premium={bool(dark_premium)}",
+            f"PRODUCT_MATS watchy case/bezel/eink+glass/button/strap/metal "
+            f"dark_premium={bool(dark_premium)}",
             flush=True,
         )
         return "watchy"

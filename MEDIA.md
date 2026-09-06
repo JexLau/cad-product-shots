@@ -72,10 +72,10 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 
 | Pack | Path | License | Landing | Hard line |
 | --- | --- | --- | --- | --- |
-| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | **On the page** — live qualified demo; **material-passed stills only** (`08` featured + `07`, `09`, `12`) | No endorsement / fake brand / logo |
+| Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | **On the page** — live qualified demo; **dark-premium / DJI-bar** featured (`08` + full `07`–`14`) | No endorsement / fake brand / logo |
 | Open e-ink watch case | `media/demo-watchy/` | MIT (SQFMI Yatari2) | **Held / 施工中** — gallery withheld pending next remodel iteration | Not Apple Watch; not “Watchy” shelf name |
 
-Demo gallery shows **material-passed stills only**. Ploopy clay / truss angles `10-orbit-a`, `11-orbit-b`, `13-rear-three-quarter`, `14-low-angle` stay on disk under `media/demo-ploopy/stills/` and are **not** wired in `index.html` until a full re-render. Do not delete those JPGs.
+Ploopy live featured stills `07`–`14` are the promoted dark-premium / DJI-bar frames. Keep `_preview-dark-*` and the soft-grey `_preview-sg-*` appendix copies. Soft-grey is **not** the featured track.
 
 Primary source for the watch pack is SQFMI Yatari2 (`source/Yatari_2_Model.step` + demo assemble GLB). Armadillonium archived under `source/archive-armadillonium/`. Featured stills `07/08/09/12` and `_preview-sg-*` copies remain in-repo; do not wire them back onto the landing until the next iteration passes. Still **Demo · open CAD** — no trademark claim.
 

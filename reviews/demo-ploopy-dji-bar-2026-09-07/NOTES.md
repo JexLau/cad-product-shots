@@ -22,7 +22,7 @@ Jex raised acceptance to **DJI ad-tier**. Soft-grey is readable CAD only — **n
 | **dark-premium** | `media/demo-ploopy/stills/_preview-dark-07.jpg` … `_preview-dark-14.jpg` | **Only** featured candidate |
 | soft-grey | existing `_preview-sg-07/08/09/12` | Structure appendix — **not** featured |
 
-**Live `07+` unchanged** until Steve/Rams PASS (Yellow).
+**Live `07+` unchanged** until Steve/Rams PASS (Yellow). **Promoted** after Rams PASS on featured 08 + Steve LIVE PASS: `_preview-dark-07` … `_preview-dark-14` copied to live `07-front.jpg` … `14-low-angle.jpg`. `_preview-dark-*` kept. Soft-grey `_preview-sg-*` stay appendix-only. Gallery restored (`08` featured + `07/09/10/11/12/13/14`).
 
 Helper: `scripts/run_demo_renders.sh ploopy-dark` (scratch under `.render-out/`; copy to `_preview-dark-*` after visual pass). Soft-grey full 07–14: `ploopy` target now lists all 8 angles + `--no-copy-repo`.
 
@@ -43,6 +43,10 @@ Helper: `scripts/run_demo_renders.sh ploopy-dark` (scratch under `.render-out/`;
 6. Breathing room (`radius_scale` ~2.95 dark preset)
 7. Demo · open CAD; no fake logos
 
-## Do not promote
+## Promote (this PR)
 
-Hold live swap until Steve Yellow + Rams re-check. Watchy out of scope for this PR.
+Rams PASS on featured 08. Steve LIVE PASS: promote dark-premium to live. Watchy still held (#28). Soft-grey is appendix only.
+
+## Do not promote (historical)
+
+Hold was: live swap until Steve Yellow + Rams re-check. Watchy remains out of scope.

@@ -48,7 +48,7 @@ Primary CTAs (hero, sticky header, footer) open `mailto:jexlau.dev@gmail.com?sub
 
 See [DESIGN.md](./DESIGN.md) for IA and the N=5 / ghost-perspective / free test still / no public price assumptions.
 
-See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Live Demo · open CAD packs: open headphones (dark-premium / DJI-bar, `08` featured + full `07`–`14`) and the open e-ink watch case (Party dark-premium, `08` featured + `07`/`09`/`12`). Soft-grey frames stay appendix-only. Do not add stock or fake 3D.
+See [MEDIA.md](./MEDIA.md) for the `media/` drop-in map. Case #1 ghost, three white-background stills, two studio stills, the orbit clip, and `media/og/share.jpg` are on the page. Live Demo · open CAD packs: open headphones (dark-premium / DJI-bar, `08` featured + full `07`–`14`) and the open e-ink watch case (Party dark-premium, `08` featured + `07`/`09`/`12`). Each demo gallery has a sibling **Spin · 3D** `<model-viewer>` panel (lazy-loaded; featured stills stay the hero). Soft-grey frames stay appendix-only. Do not add stock or fake 3D.
 
 ## Case #1 multi-angle stills
 

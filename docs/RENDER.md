@@ -30,7 +30,7 @@ Soft-grey controlled studio — **not** paper-white cyclorama:
 - Floor darker than world for edge separation
 - Size-scaled area lights with high key:fill ratio (`--light-scale`)
 - AgX High Contrast + `--exposure` pull-down to avoid blown highlights
-- Demo packs (Ploopy / Watchy): **product materials** — Ploopy earcups procedural soft-pad/satin-shell mix + driver mesh + fabric headband; Watchy case/insert/button. Not white clay (Rams surface DoD)
+- Demo packs (Ploopy / Watchy): **product materials** — Ploopy earcups procedural soft-pad/satin-shell mix + driver mesh + fabric headband; Watchy Yatari2 case + boolean dial/screen insert + strap extras (`--watchy-extras`). Not white clay (Rams surface DoD)
 - Print-support / jig / ghost meshes hidden via `--hide-supports` (HPH-039/038/036/035); CAD source untouched
 - Ploopy: quiet fabric headband proxy (`add_ploopy_headband_proxy`, `--headband-proxy` / `--no-headband-proxy`) restores wearable silhouette after HPH-035 hide
 - Ploopy headband ends measure HPH-013/018 outer-top pads + joint plugs (not a floating thickened arc)
@@ -49,7 +49,7 @@ BLENDER=/workspace/blender-install/blender-5.2.0-linux-x64/blender
 OUT=/tmp/watchy-dark-preview
 mkdir -p "$OUT"
 "$BLENDER" -b -P scripts/render_stills_pipeline.py -- \
-  --glb media/demo-watchy/source/Armadillonium_Model.glb \
+  --glb media/demo-watchy/source/Yatari_2_Model.glb \
   --shots simple --only 08-three-quarter.jpg \
   --preset dark --engine CYCLES --samples 64 --res 1080 \
   --out "$OUT" --no-copy-repo --force

@@ -46,7 +46,7 @@ Page caption stays **Demo · open CAD** / open e-ink watch case (not a shelf tra
 
 ## Preview policy
 
-Soft-grey frames land as `_preview-sg-*` only. **Do not promote live** until Steve Yellow / Rams visual pass. Do not undo #25 hide.
+Soft-grey frames landed as `_preview-sg-*` until Rams PASS / Steve Yellow. **Promoted** to live `07/08/09/12`; landing gallery restored (undo #25 hide). `_preview-sg-*` copies kept.
 
 ## Reproduce
 

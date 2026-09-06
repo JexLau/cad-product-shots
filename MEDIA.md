@@ -73,8 +73,8 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 | Pack | Path | License | Landing | Hard line |
 | --- | --- | --- | --- | --- |
 | Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | **On the page** — live qualified demo | No endorsement / fake brand / logo |
-| Open e-ink watch case | `media/demo-watchy/` | MIT (SQFMI Yatari2) | **Held / 施工中** — Yatari2 remodel previews in `_preview-sg-*`; live stills not showcased until Steve PASS | Not Apple Watch; not “Watchy” shelf name |
+| Open e-ink watch case | `media/demo-watchy/` | MIT (SQFMI Yatari2) | **On the page** — live again after Rams PASS / Steve Yellow; Yatari2 demo assemble | Not Apple Watch; not “Watchy” shelf name |
 
-Primary source is SQFMI Yatari2 (`source/Yatari_2_Model.step` + demo assemble GLB). Armadillonium archived under `source/archive-armadillonium/`. Soft-grey remodel previews: `_preview-sg-07/08/09/12`. Do not wire stills back onto the landing until Steve PASS.
+Primary source is SQFMI Yatari2 (`source/Yatari_2_Model.step` + demo assemble GLB). Armadillonium archived under `source/archive-armadillonium/`. Live featured stills `07/08/09/12` are the promoted Yatari2 frames; `_preview-sg-*` copies remain. Still **Demo · open CAD** — no trademark claim.
 
 Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.

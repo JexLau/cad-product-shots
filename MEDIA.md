@@ -73,10 +73,10 @@ If the site moves to a custom domain, update the absolute URLs in `index.html` t
 | Pack | Path | License | Landing | Hard line |
 | --- | --- | --- | --- | --- |
 | Open headphones | `media/demo-ploopy/` | CERN-OHL-S-2.0 | **On the page** — live qualified demo; **dark-premium / DJI-bar** featured (`08` + full `07`–`14`) | No endorsement / fake brand / logo |
-| Open e-ink watch case | `media/demo-watchy/` | MIT (SQFMI Yatari2) | **Held / 施工中** — gallery withheld pending next remodel iteration | Not Apple Watch; not “Watchy” shelf name |
+| Open e-ink watch case | `media/demo-watchy/` | MIT (SQFMI Party) | **On the page** — live again; **Party dark-premium** featured (`08` + `07`/`09`/`12`) | Not Apple Watch; not “Watchy” shelf name |
 
 Ploopy live featured stills `07`–`14` are the promoted dark-premium / DJI-bar frames. Keep `_preview-dark-*` and the soft-grey `_preview-sg-*` appendix copies. Soft-grey is **not** the featured track.
 
-Primary source for the watch pack is SQFMI Yatari2 (`source/Yatari_2_Model.step` + demo assemble GLB). Armadillonium archived under `source/archive-armadillonium/`. Featured stills `07/08/09/12` and `_preview-sg-*` copies remain in-repo; do not wire them back onto the landing until the next iteration passes. Still **Demo · open CAD** — no trademark claim.
+Primary source for the watch pack is SQFMI **Party** (`source/party/` + `source/Party_Model.glb`). Yatari2 and Armadillonium stay on disk as prior / archive — not featured. Live `07/08/09/12` are the promoted `_preview-dark-*` frames; `_preview-dark-*` kept; soft-grey `_preview-sg-*` remain appendix-only. Still **Demo · open CAD** — no trademark claim.
 
 Pipeline: `scripts/render_stills_pipeline.py` (`--glb`/`--step`/`--stl`/`--obj`). STEP → GLB via `scripts/step_to_glb.py` when Blender lacks a CAD importer.

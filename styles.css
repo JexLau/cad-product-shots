@@ -765,11 +765,11 @@ dd {
 }
 
 .orbit-panel .frame {
-  max-width: 16.5rem;
+  max-width: min(12.75rem, 58vw);
 }
 
 @media (min-width: 720px) {
   .orbit-panel .frame {
-    max-width: 20rem;
+    max-width: 18rem;
   }
 }

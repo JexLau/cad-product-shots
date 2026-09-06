@@ -523,17 +523,21 @@
                     poster="./media/demo-ploopy/stills/08-three-quarter.jpg"
                     alt="Interactive 3D of the open headphones CAD demo. Drag to orbit."
                     camera-controls
-                    touch-action="none"
+                    touch-action="pan-y"
                     interaction-prompt="none"
-                    shadow-intensity="0.28"
-                    shadow-softness="0.8"
+                    shadow-intensity="0.18"
+                    shadow-softness="0.85"
                     exposure="0.72"
                     tone-mapping="commerce"
                     environment-image="neutral"
-                    camera-orbit="40deg 72deg auto"
-                    min-camera-orbit="auto 8deg auto"
-                    max-camera-orbit="auto 172deg auto"
-                    interpolation-decay="80"
+                    camera-orbit="38deg 75deg 165%"
+                    camera-target="0m 0.01m 0m"
+                    field-of-view="28deg"
+                    min-camera-orbit="auto 28deg 145%"
+                    max-camera-orbit="auto 150deg auto"
+                    min-field-of-view="24deg"
+                    max-field-of-view="34deg"
+                    interpolation-decay="90"
                     loading="lazy"
                     reveal="auto"
                   >
@@ -581,17 +585,21 @@
                     poster="./media/demo-watchy/stills/08-three-quarter.jpg"
                     alt="Interactive 3D of the open e-ink watch case CAD demo. Drag to orbit."
                     camera-controls
-                    touch-action="none"
+                    touch-action="pan-y"
                     interaction-prompt="none"
-                    shadow-intensity="0.22"
-                    shadow-softness="0.85"
-                    exposure="0.68"
+                    shadow-intensity="0.14"
+                    shadow-softness="0.9"
+                    exposure="0.78"
                     tone-mapping="commerce"
                     environment-image="neutral"
-                    camera-orbit="26deg 80deg auto"
-                    min-camera-orbit="auto 8deg auto"
-                    max-camera-orbit="auto 172deg auto"
-                    interpolation-decay="80"
+                    camera-orbit="26deg 78deg 170%"
+                    camera-target="0m 0m 0m"
+                    field-of-view="26deg"
+                    min-camera-orbit="auto 28deg 150%"
+                    max-camera-orbit="auto 150deg auto"
+                    min-field-of-view="22deg"
+                    max-field-of-view="32deg"
+                    interpolation-decay="90"
                     loading="lazy"
                     reveal="auto"
                   >
@@ -681,10 +689,26 @@
         if (!viewers.length) return;
         var started = false;
 
+        function lockFraming(node) {
+          function apply() {
+            var orbit = node.getAttribute("camera-orbit");
+            var fov = node.getAttribute("field-of-view");
+            var target = node.getAttribute("camera-target");
+            if (orbit) node.cameraOrbit = orbit;
+            if (fov) node.fieldOfView = fov;
+            if (target) node.cameraTarget = target;
+            if (typeof node.jumpCameraToGoal === "function") {
+              node.jumpCameraToGoal();
+            }
+          }
+          node.addEventListener("load", apply);
+        }
+
         function attachSrc(node) {
           if (node.getAttribute("src")) return;
           var src = node.getAttribute("data-src");
           if (src) node.setAttribute("src", src);
+          lockFraming(node);
         }
 
         function loadViewer() {

@@ -88,4 +88,4 @@ Interactive orbit viewers (sibling **Spin · 3D** panels under each demo gallery
 | Open headphones | `media/demo-ploopy/source/Ploopy_Viewer.glb` | `PloopyHeadphones-RevA.glb` + product-mats + hide-supports + headband join |
 | Open e-ink watch case | `media/demo-watchy/source/Party_Viewer.glb` | `Party_Model.glb` + knife-3 extras (e-ink / glass / strap / clip soften) + dark-premium mats |
 
-`<model-viewer>` is lazy-loaded when a Spin · 3D panel nears the viewport. Raw CAD GLBs stay in-repo; do not point the page at them (Ploopy source is unshaded).
+`<model-viewer>` is lazy-loaded when a Spin · 3D panel nears the viewport. Raw CAD GLBs stay in-repo; do not point the page at them (Ploopy source is unshaded). Default orbit uses `08` language (full product + black margin; min orbit radius ≥145% so the camera cannot crop to a headband). Watchy viewer GLB drops the 0.08-alpha glass plate so the e-ink Face stays opaque at any angle. The Spin · 3D stage is visually smaller than the featured still.

@@ -71,6 +71,124 @@ def parse_targets() -> list[str]:
     return wanted
 
 
+def harden_watchy_eink_for_viewer():
+    """Viewer-only: opaque light-grey e-ink + readable UI at any orbit.
+
+    Cycles stills use a 0.08-alpha Fresnel glass over paper. glTF / model-viewer
+    draws that as a flat translucent grey plate and hides the Face UI. Drop the
+    glass, thicken the paper, project Face.png on every XZ-facing side.
+    """
+    glass = bpy.data.objects.get("WatchyScreenGlass")
+    if glass:
+        mesh = glass.data
+        bpy.data.objects.remove(glass, do_unlink=True)
+        if mesh and mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+        print("VIEWER_EINK removed WatchyScreenGlass (alpha plate)", flush=True)
+
+    insert = bpy.data.objects.get("WatchyScreenInsert")
+    if not insert or insert.type != "MESH":
+        print("VIEWER_EINK skip (no insert)", flush=True)
+        return
+
+    # Thicken along local Y so the dial never reads as a membrane at grazing angles.
+    insert.scale.y = max(insert.scale.y, 1.0) * 2.4
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = insert
+    insert.select_set(True)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+    mesh = insert.data
+    if not mesh.uv_layers:
+        mesh.uv_layers.new(name="UVMap")
+    uv_layer = mesh.uv_layers.active
+    xs, zs = [], []
+    world = []
+    for v in mesh.vertices:
+        w = insert.matrix_world @ v.co
+        world.append(w)
+        xs.append(w.x)
+        zs.append(w.z)
+    minx, maxx = min(xs), max(xs)
+    minz, maxz = min(zs), max(zs)
+    dx = max(1e-9, maxx - minx)
+    dz = max(1e-9, maxz - minz)
+    for poly in mesh.polygons:
+        for li in poly.loop_indices:
+            vi = mesh.loops[li].vertex_index
+            w = world[vi]
+            uv_layer.data[li].uv = ((w.x - minx) / dx, (w.z - minz) / dz)
+
+    for mat in insert.data.materials:
+        if not mat:
+            continue
+        try:
+            mat.use_backface_culling = False
+        except Exception:
+            pass
+        try:
+            mat.blend_method = "OPAQUE"
+        except Exception:
+            pass
+        if not mat.use_nodes:
+            continue
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if not bsdf:
+            continue
+        if "Alpha" in bsdf.inputs:
+            bsdf.inputs["Alpha"].default_value = 1.0
+        if "Transmission Weight" in bsdf.inputs:
+            bsdf.inputs["Transmission Weight"].default_value = 0.0
+        if "Emission Strength" in bsdf.inputs:
+            # Keep Face readable under model-viewer's dimmer IBL (not an LED).
+            tex = next((n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE"), None)
+            if tex and "Emission Color" in bsdf.inputs:
+                mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+            bsdf.inputs["Emission Strength"].default_value = 0.08
+    print("VIEWER_EINK opaque paper + Face UV + no glass", flush=True)
+
+
+def recenter_for_viewer(exclude_prefixes=()):
+    """Put origin at the framed product center (Watchy: case+dial, not strap tails)."""
+    from mathutils import Vector
+
+    mins = Vector((1e9, 1e9, 1e9))
+    maxs = Vector((-1e9, -1e9, -1e9))
+    found = False
+    excl = tuple(exclude_prefixes or ())
+    for obj in bpy.data.objects:
+        if obj.type != "MESH" or obj.hide_render:
+            continue
+        if excl and any(obj.name.startswith(p) for p in excl):
+            continue
+        found = True
+        for corner in obj.bound_box:
+            w = obj.matrix_world @ Vector(corner)
+            mins = Vector(tuple(min(mins[i], w[i]) for i in range(3)))
+            maxs = Vector(tuple(max(maxs[i], w[i]) for i in range(3)))
+    if not found:
+        return
+    center = (mins + maxs) / 2.0
+    for obj in bpy.data.objects:
+        if obj.type != "MESH":
+            continue
+        obj.location = obj.location - center
+    bpy.context.view_layer.update()
+    for obj in list(bpy.data.objects):
+        if obj.type != "MESH":
+            continue
+        bpy.ops.object.select_all(action="DESELECT")
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    size = maxs - mins
+    print(
+        f"VIEWER_RECENTER center={tuple(round(c, 5) for c in center)} "
+        f"frame_size={tuple(round(s, 5) for s in size)}",
+        flush=True,
+    )
+
+
 def flatten_earcup_mix_to_vertex_color():
     """glTF cannot keep the Mix-shader pad/shell graph — bake the same falloff to COLOR_0."""
     shell = (0.048, 0.050, 0.056)
@@ -211,6 +329,11 @@ def bake_one(name: str):
     kind = assign_product_materials(kind="auto", dark_premium=True)
     print(f"VIEWER_MATS {name} kind={kind}", flush=True)
     flatten_earcup_mix_to_vertex_color()
+    if spec["extras"]:
+        harden_watchy_eink_for_viewer()
+        recenter_for_viewer(exclude_prefixes=("WatchyStrap",))
+    else:
+        recenter_for_viewer()
     strip_non_product()
     meshes = [o.name for o in bpy.data.objects if o.type == "MESH"]
     print(f"VIEWER_MESHES {name} {meshes}", flush=True)
